@@ -1,0 +1,98 @@
+[project]
+name = "m3rssm"
+version = "0.0.1"
+description = "M3RSSM implementations"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{ name = "Mamoru Ota" }]
+dependencies = [
+  "lightning[extra]>=2.4.0",
+  "torchrl>=0.5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "mypy>=1.11.2",
+  "poethepoet>=0.29.0",
+  "pydoclint>=0.5.9",
+  "pytest-cov>=5.0.0",
+  "ruff>=0.6.8",
+]
+train = [
+  "cnn",
+  "distribution-extension",
+  "gdown>=5.2.0",
+  "torchvision>=0.19.1",
+  "wandb[media]>=0.18.3",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/models"]
+
+[tool.uv]
+package = true
+
+[tool.uv.sources]
+distribution-extension = { git = "https://github.com/nomutin/distribution-extension" }
+cnn = { git = "https://github.com/nomutin/CNN.git" }
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+mypy_path = "src"
+explicit_package_bases = true
+disable_error_code = ["override"]
+
+[tool.pyright]
+reportMissingImports = "none"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+preview = true
+select = ["ALL"]
+ignore = ["CPY001"]
+fixable = ["ALL"]
+unfixable = []
+exclude = [".git", ".ruff_cache", ".venv",]
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.format]
+preview = true
+
+[tool.ruff.lint.isort]
+known-first-party = ["models"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/models/callback.py" = ["PLR6301", "C901", "PLR0912", "PLR0915", "PLR0914", "TRY300"]
+"src/models/core.py" = ["PLR0913", "PLR6301"]
+"src/models/dataset.py" = ["DOC501", "DOC502"]
+"src/models/networks.py" = ["PLR0913"]
+"tests/*.py" = ["S101", "DOC201", "N801", "PLR6301", "PLR2004", "SLF001", "ANN401"]
+"scripts/*.py" = ["PLC2701"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.pydoclint]
+style = 'numpy'
+exclude = '\.git|\.ruff_cache|\.mypy_cache|\.venv'
+
+[tool.poe.tasks]
+lint-ruff = "ruff check --fix ."
+lint-ruff-check = "ruff check ."
+lint-mypy = "mypy ."
+lint-mypy-check = "mypy ."
+lint-pydoclint = "pydoclint ."
+lint = ["lint-ruff", "lint-mypy",]
+lint-ci = ["lint-ruff-check", "lint-mypy"]
+test = "pytest . --doctest-modules -ra --cov=src --cov-report=term --cov-report=xml"
+
+[tool.poe.tasks.train-mopoe-mrssm]
+cmd = "uv run python scripts/train_mopoe_mrssm.py"
