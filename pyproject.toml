@@ -22,6 +22,7 @@ train = [
   "cnn",
   "distribution-extension",
   "gdown>=5.2.0",
+  "h5py>=3.11.0",
   "torchvision>=0.19.1",
   "wandb[media]>=0.18.3",
 ]
@@ -96,3 +97,9 @@ test = "pytest . --doctest-modules -ra --cov=src --cov-report=term --cov-report=
 
 [tool.poe.tasks.train-mopoe-mrssm]
 cmd = "uv run python scripts/train_mopoe_mrssm.py"
+
+[tool.poe.tasks.train-mtrssm]
+cmd = "uv run python scripts/train_mtrssm.py"
+
+[tool.poe.tasks.train-m3rssm]
+cmd = "uv run python scripts/train_m3rssm.py"
