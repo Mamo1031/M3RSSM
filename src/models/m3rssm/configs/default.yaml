@@ -1,0 +1,311 @@
+---
+seed_everything: 42
+
+model:
+  class_path: models.m3rssm.M3RSSM
+  init_args:
+    vision_representation:
+      class_path: models.networks.Representation
+      init_args:
+        deterministic_size: 32
+        hidden_size: 32
+        obs_embed_size: 64
+        distribution_config: [4, 4]
+        activation_name: ELU
+    left_tactile_representation:
+      class_path: models.networks.Representation
+      init_args:
+        deterministic_size: 32
+        hidden_size: 32
+        obs_embed_size: 64
+        distribution_config: [4, 4]
+        activation_name: ELU
+    right_tactile_representation:
+      class_path: models.networks.Representation
+      init_args:
+        deterministic_size: 32
+        hidden_size: 32
+        obs_embed_size: 64
+        distribution_config: [4, 4]
+        activation_name: ELU
+    vision_encoder:
+      class_path: cnn.Encoder
+      init_args:
+        config:
+          linear_sizes: [64,]
+          activation_name: ELU
+          out_activation_name: Identity
+          channels: [8, 16, 32]
+          kernel_sizes: [3, 3, 3]
+          strides: [2, 2, 2]
+          paddings: [1, 1, 1]
+          num_residual_blocks: 3
+          residual_intermediate_size: 64
+          residual_output_size: 64
+          coord_conv: true
+    tactile_encoder:
+      class_path: cnn.Encoder
+      init_args:
+        config:
+          linear_sizes: [64,]
+          activation_name: ELU
+          out_activation_name: Identity
+          channels: [8, 16, 32]
+          kernel_sizes: [3, 3, 3]
+          strides: [2, 2, 2]
+          paddings: [1, 1, 1]
+          num_residual_blocks: 3
+          residual_intermediate_size: 64
+          residual_output_size: 64
+          coord_conv: true
+    vision_decoder:
+      class_path: cnn.Decoder
+      init_args:
+        config:
+          linear_sizes: [64, 3072]
+          conv_in_shape: [64, 6, 8]
+          activation_name: ELU
+          out_activation_name: Tanh
+          channels: [32, 16, 3]
+          kernel_sizes: [4, 4, 4]
+          strides: [2, 2, 2]
+          paddings: [1, 1, 1]
+          output_paddings: [0, 0, 0]
+          num_residual_blocks: 3
+          residual_intermediate_size: 128
+          residual_input_size: 64
+    left_tactile_decoder:
+      class_path: cnn.Decoder
+      init_args:
+        config:
+          linear_sizes: [64, 3072]
+          conv_in_shape: [64, 6, 8]
+          activation_name: ELU
+          out_activation_name: Tanh
+          channels: [32, 16, 3]
+          kernel_sizes: [4, 4, 4]
+          strides: [2, 2, 2]
+          paddings: [1, 1, 1]
+          output_paddings: [0, 0, 0]
+          num_residual_blocks: 3
+          residual_intermediate_size: 128
+          residual_input_size: 64
+    right_tactile_decoder:
+      class_path: cnn.Decoder
+      init_args:
+        config:
+          linear_sizes: [64, 3072]
+          conv_in_shape: [64, 6, 8]
+          activation_name: ELU
+          out_activation_name: Tanh
+          channels: [32, 16, 3]
+          kernel_sizes: [4, 4, 4]
+          strides: [2, 2, 2]
+          paddings: [1, 1, 1]
+          output_paddings: [0, 0, 0]
+          num_residual_blocks: 3
+          residual_intermediate_size: 128
+          residual_input_size: 64
+    init_proj:
+      class_path: torchrl.modules.MLP
+      init_args:
+        in_features: 64
+        out_features: 64
+        num_cells: 200
+        depth: 1
+    kl_coeff: 1
+    use_kl_balancing: true
+    # MTRSSM specific parameters
+    action_size: 17
+    hd_dim: 32
+    hs_dim: 16
+    ld_dim: 32
+    ls_dim: 16
+    l_tau: 2.0
+    h_tau: 4.0
+    l_prior:
+      class_path: torchrl.modules.MLP
+      init_args:
+        in_features: 32
+        out_features: 16
+        num_cells: 32
+        depth: 1
+        activation_class: torch.nn.ELU
+        activate_last_layer: false
+    l_posterior:
+      class_path: torchrl.modules.MLP
+      init_args:
+        in_features: 96
+        out_features: 16
+        num_cells: 32
+        depth: 1
+        activation_class: torch.nn.ELU
+        activate_last_layer: false
+    h_prior:
+      class_path: torchrl.modules.MLP
+      init_args:
+        in_features: 32
+        out_features: 16
+        num_cells: 32
+        depth: 1
+        activation_class: torch.nn.ELU
+        activate_last_layer: false
+    h_posterior:
+      class_path: torchrl.modules.MLP
+      init_args:
+        in_features: 64
+        out_features: 16
+        num_cells: 32
+        depth: 1
+        activation_class: torch.nn.ELU
+        activate_last_layer: false
+    l_dist:
+      class_path: distribution_extension.MultiOneHotFactory
+      init_args:
+        class_size: 4
+        category_size: 4
+    h_dist:
+      class_path: distribution_extension.MultiOneHotFactory
+      init_args:
+        class_size: 2
+        category_size: 8
+    w_kl_h: 1.0
+
+optimizer:
+  class_path: torch.optim.AdamW
+  init_args:
+    lr: 0.001
+
+lr_scheduler:
+  class_path: lightning.pytorch.cli.ReduceLROnPlateau
+  init_args:
+    monitor: val/loss
+    mode: min
+    factor: 0.5
+    patience: 50
+
+trainer:
+  accelerator: gpu
+  max_epochs: 100
+  gradient_clip_val: 10
+  deterministic: true
+  precision: 16-mixed
+  log_every_n_steps: 1
+
+  logger:
+    class_path: lightning.pytorch.loggers.WandbLogger
+    init_args:
+      log_model: false
+      project: m3rssm
+      save_dir: .venv
+
+  callbacks:
+    -
+      class_path: models.callback.WandBMetricOrganizer
+    -
+      class_path: LearningRateMonitor
+    -
+      class_path: EarlyStopping
+      init_args:
+        monitor: val/loss
+        patience: 200
+        mode: min
+        verbose: True
+    -
+      class_path: ModelCheckpoint
+      init_args:
+        monitor: val/loss
+        mode: min
+        save_top_k: 1
+    -
+      class_path: models.m3rssm.callback.LogM3RSSMOutput
+      init_args:
+        every_n_epochs: 10
+        indices: [0, 1, 2]
+        query_length: 10
+        fps: 10.0
+
+data:
+  class_path: models.mopoe_mrssm.dataset.EpisodeDataModule
+  init_args:
+    config:
+      data_name: data_example
+      batch_size: 8
+      num_workers: 4
+      gdrive_url: ""
+      h5_file_name: rakuda_observations.h5
+      h5_vision_key: camera/main
+      h5_left_tactile_key: tactile/left
+      h5_right_tactile_key: tactile/right
+      h5_action_key: arm/leader
+      vision_observation_file_name: cameras.main
+      left_tactile_observation_file_name: tactile.left
+      right_tactile_observation_file_name: tactile.right
+      action_preprocess:
+        class_path: torch.nn.Identity
+      vision_observation_preprocess:
+        class_path: models.transform.NormalizeVisionImage
+      left_tactile_observation_preprocess:
+        class_path: models.transform.NormalizeVisionImage
+      right_tactile_observation_preprocess:
+        class_path: models.transform.NormalizeVisionImage
+      action_input_transform:
+        class_path: torchvision.transforms.Compose
+        init_args:
+          transforms:
+            - class_path: models.transform.TakeFirstN
+              init_args:
+                n: 30
+            - class_path: models.transform.GaussianNoise
+      action_target_transform:
+        class_path: torchvision.transforms.Compose
+        init_args:
+          transforms:
+            - class_path: models.transform.TakeFirstN
+              init_args:
+                n: 30
+      vision_observation_input_transform:
+        class_path: torchvision.transforms.Compose
+        init_args:
+          transforms:
+            - class_path: models.transform.TakeFirstN
+              init_args:
+                n: 30
+            - class_path: models.transform.GaussianNoise
+      vision_observation_target_transform:
+        class_path: torchvision.transforms.Compose
+        init_args:
+          transforms:
+            - class_path: models.transform.TakeFirstN
+              init_args:
+                n: 30
+      left_tactile_observation_input_transform:
+        class_path: torchvision.transforms.Compose
+        init_args:
+          transforms:
+            - class_path: models.transform.TakeFirstN
+              init_args:
+                n: 30
+            - class_path: models.transform.GaussianNoise
+      left_tactile_observation_target_transform:
+        class_path: torchvision.transforms.Compose
+        init_args:
+          transforms:
+            - class_path: models.transform.TakeFirstN
+              init_args:
+                n: 30
+      right_tactile_observation_input_transform:
+        class_path: torchvision.transforms.Compose
+        init_args:
+          transforms:
+            - class_path: models.transform.TakeFirstN
+              init_args:
+                n: 30
+            - class_path: models.transform.GaussianNoise
+      right_tactile_observation_target_transform:
+        class_path: torchvision.transforms.Compose
+        init_args:
+          transforms:
+            - class_path: models.transform.TakeFirstN
+              init_args:
+                n: 30
