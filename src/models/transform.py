@@ -32,30 +32,6 @@ class RemoveDim:
         return torch.index_select(data, self.axis, torch.tensor(keep))
 
 
-class TakeFirstN:
-    """Take first N timesteps transform."""
-
-    def __init__(self, n: int) -> None:
-        """Initialize the take first N transform.
-
-        Args:
-            n: Number of timesteps to take from the beginning.
-        """
-        self.n = n
-
-    def __call__(self, data: Tensor) -> Tensor:
-        """Take first N timesteps transform.
-
-        Args:
-            data: The tensor with time dimension as first dimension.
-
-        Returns
-        -------
-        Tensor: The tensor with first N timesteps.
-        """
-        return data[: self.n]
-
-
 class GaussianNoise:
     """Gaussian noise transform."""
 
