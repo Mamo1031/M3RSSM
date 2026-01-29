@@ -107,6 +107,13 @@ trainer:
         monitor: val/loss
         mode: min
         save_top_k: 1
+    -
+      class_path: models.mtrssm.callback.LogMTRSSMOutput
+      init_args:
+        every_n_epochs: 10
+        indices: [0, 1, 2]
+        query_length: 10
+        fps: 10.0
 
 data:
   class_path: models.mtrssm.dataset.EpisodeDataModule

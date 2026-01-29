@@ -1,6 +1,7 @@
 """MTRSSM package."""
 
 from models.callback import WandBMetricOrganizer
+from models.mtrssm.callback import LogMTRSSMOutput
 from models.mtrssm.core import MTRSSM
 from models.mtrssm.dataset import EpisodeDataModule, EpisodeDataModuleConfig
 from models.networks import Representation, Transition
@@ -12,6 +13,7 @@ __all__ = [
     "EpisodeDataModule",
     "EpisodeDataModuleConfig",
     "GaussianNoise",
+    "LogMTRSSMOutput",
     "MTRSSM",
     "NormalizeVisionImage",
     "RemoveDim",
