@@ -6,7 +6,7 @@ from models.mtrssm.dataset import EpisodeDataModule, EpisodeDataModuleConfig
 from models.networks import Representation, Transition
 from models.objective import likelihood
 from models.state import State, cat_states, stack_states
-from models.transform import GaussianNoise, NormalizeVisionImage, RemoveDim, TakeFirstN
+from models.transform import GaussianNoise, NormalizeVisionImage, RemoveDim
 
 __all__ = [
     "EpisodeDataModule",
@@ -17,7 +17,6 @@ __all__ = [
     "RemoveDim",
     "Representation",
     "State",
-    "TakeFirstN",
     "Transition",
     "WandBMetricOrganizer",
     "cat_states",

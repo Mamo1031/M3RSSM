@@ -125,24 +125,13 @@ data:
         class_path: torchvision.transforms.Compose
         init_args:
           transforms:
-            - class_path: models.transform.TakeFirstN
-              init_args:
-                n: 30
             - class_path: models.transform.GaussianNoise
       action_target_transform:
-        class_path: torchvision.transforms.Compose
-        init_args:
-          transforms:
-            - class_path: models.transform.TakeFirstN
-              init_args:
-                n: 30
+        class_path: torch.nn.Identity
       observation_input_transform:
         class_path: torchvision.transforms.Compose
         init_args:
           transforms:
-            - class_path: models.transform.TakeFirstN
-              init_args:
-                n: 30
             - class_path: models.transform.ResizeSpatial
               init_args:
                 height: 48
@@ -152,9 +141,6 @@ data:
         class_path: torchvision.transforms.Compose
         init_args:
           transforms:
-            - class_path: models.transform.TakeFirstN
-              init_args:
-                n: 30
             - class_path: models.transform.ResizeSpatial
               init_args:
                 height: 48

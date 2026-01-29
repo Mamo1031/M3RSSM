@@ -12,7 +12,6 @@ from models.transform import (
     NormalizeAudioMelSpectrogram,
     NormalizeVisionImage,
     RemoveDim,
-    TakeFirstN,
 )
 
 __all__ = [

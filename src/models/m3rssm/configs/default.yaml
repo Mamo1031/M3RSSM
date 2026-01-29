@@ -253,59 +253,27 @@ data:
         class_path: torchvision.transforms.Compose
         init_args:
           transforms:
-            - class_path: models.transform.TakeFirstN
-              init_args:
-                n: 30
             - class_path: models.transform.GaussianNoise
       action_target_transform:
-        class_path: torchvision.transforms.Compose
-        init_args:
-          transforms:
-            - class_path: models.transform.TakeFirstN
-              init_args:
-                n: 30
+        class_path: torch.nn.Identity
       vision_observation_input_transform:
         class_path: torchvision.transforms.Compose
         init_args:
           transforms:
-            - class_path: models.transform.TakeFirstN
-              init_args:
-                n: 30
             - class_path: models.transform.GaussianNoise
       vision_observation_target_transform:
-        class_path: torchvision.transforms.Compose
-        init_args:
-          transforms:
-            - class_path: models.transform.TakeFirstN
-              init_args:
-                n: 30
+        class_path: torch.nn.Identity
       left_tactile_observation_input_transform:
         class_path: torchvision.transforms.Compose
         init_args:
           transforms:
-            - class_path: models.transform.TakeFirstN
-              init_args:
-                n: 30
             - class_path: models.transform.GaussianNoise
       left_tactile_observation_target_transform:
-        class_path: torchvision.transforms.Compose
-        init_args:
-          transforms:
-            - class_path: models.transform.TakeFirstN
-              init_args:
-                n: 30
+        class_path: torch.nn.Identity
       right_tactile_observation_input_transform:
         class_path: torchvision.transforms.Compose
         init_args:
           transforms:
-            - class_path: models.transform.TakeFirstN
-              init_args:
-                n: 30
             - class_path: models.transform.GaussianNoise
       right_tactile_observation_target_transform:
-        class_path: torchvision.transforms.Compose
-        init_args:
-          transforms:
-            - class_path: models.transform.TakeFirstN
-              init_args:
-                n: 30
+        class_path: torch.nn.Identity

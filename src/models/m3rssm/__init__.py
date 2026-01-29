@@ -12,7 +12,6 @@ from models.transform import (
     GaussianNoise,
     NormalizeVisionImage,
     RemoveDim,
-    TakeFirstN,
 )
 
 __all__ = [
@@ -26,7 +25,6 @@ __all__ = [
     "RemoveDim",
     "Representation",
     "State",
-    "TakeFirstN",
     "Transition",
     "WandBMetricOrganizer",
     "cat_mtstates",
