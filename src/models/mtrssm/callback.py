@@ -9,6 +9,7 @@ from models.callback import (
     BaseLogRSSMOutput,
     add_timestep_labels,
     create_combined_video,
+    denormalize_tensor,
     log_video,
 )
 from models.mtrssm.core import MTRSSM
@@ -177,17 +178,11 @@ class LogMTRSSMOutput(BaseLogRSSMOutput):
         -------
         dict[str, Tensor]: Dictionary with denormalized video data
         """
-        # Compute reconstructions
         posterior_vision_recon = model.vision_decoder(posterior.feature)
         prior_vision_recon = model.vision_decoder(prior.feature)
 
-        # Denormalize: from [-1, 1] to [0, 1]
-        prior_vision_recon = (prior_vision_recon + 1.0) / 2.0
-        vision_obs_denorm = (vision_obs_target + 1.0) / 2.0
-        posterior_vision_recon = (posterior_vision_recon + 1.0) / 2.0
-
         return {
-            "prior_vision": prior_vision_recon,
-            "observation_vision": vision_obs_denorm,
-            "posterior_vision": posterior_vision_recon,
+            "prior_vision": denormalize_tensor(prior_vision_recon),
+            "observation_vision": denormalize_tensor(vision_obs_target),
+            "posterior_vision": denormalize_tensor(posterior_vision_recon),
         }

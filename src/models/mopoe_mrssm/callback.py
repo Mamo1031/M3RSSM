@@ -13,7 +13,7 @@ from matplotlib import colormaps
 from PIL import Image, ImageDraw, ImageFont
 from torch import Tensor
 
-from models.callback import RGB_CHANNELS, BaseLogRSSMOutput
+from models.callback import RGB_CHANNELS, BaseLogRSSMOutput, denormalize_tensor
 from models.mopoe_mrssm.core import MoPoE_MRSSM
 from models.state import State, cat_states
 
@@ -247,15 +247,9 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
         prior_right_tactile_recon = decoder_model.right_tactile_decoder.forward(prior.feature)  # type: ignore[attr-defined, union-attr]
 
         # Denormalize: from [-1, 1] to [0, 1]
-        prior_vision_recon = (prior_vision_recon + 1.0) / 2.0
-        vision_obs_denorm: Tensor = (vision_obs_target + 1.0) / 2.0
-        posterior_vision_recon = (posterior_vision_recon + 1.0) / 2.0
-        prior_left_tactile_recon = (prior_left_tactile_recon + 1.0) / 2.0
-        left_tactile_obs_denorm: Tensor = (left_tactile_obs_target + 1.0) / 2.0
-        posterior_left_tactile_recon = (posterior_left_tactile_recon + 1.0) / 2.0
-        prior_right_tactile_recon = (prior_right_tactile_recon + 1.0) / 2.0
-        right_tactile_obs_denorm: Tensor = (right_tactile_obs_target + 1.0) / 2.0
-        posterior_right_tactile_recon = (posterior_right_tactile_recon + 1.0) / 2.0
+        vision_obs_denorm = denormalize_tensor(vision_obs_target)
+        left_tactile_obs_denorm = denormalize_tensor(left_tactile_obs_target)
+        right_tactile_obs_denorm = denormalize_tensor(right_tactile_obs_target)
 
         # For missing modalities, visualize observation as pure black
         if vision_missing:
@@ -266,15 +260,15 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
             right_tactile_obs_denorm = torch.zeros_like(right_tactile_obs_denorm)
 
         return {
-            "prior_vision": prior_vision_recon,
+            "prior_vision": denormalize_tensor(prior_vision_recon),
             "observation_vision": vision_obs_denorm,
-            "posterior_vision": posterior_vision_recon,
-            "prior_left_tactile": prior_left_tactile_recon,
+            "posterior_vision": denormalize_tensor(posterior_vision_recon),
+            "prior_left_tactile": denormalize_tensor(prior_left_tactile_recon),
             "observation_left_tactile": left_tactile_obs_denorm,
-            "posterior_left_tactile": posterior_left_tactile_recon,
-            "prior_right_tactile": prior_right_tactile_recon,
+            "posterior_left_tactile": denormalize_tensor(posterior_left_tactile_recon),
+            "prior_right_tactile": denormalize_tensor(prior_right_tactile_recon),
             "observation_right_tactile": right_tactile_obs_denorm,
-            "posterior_right_tactile": posterior_right_tactile_recon,
+            "posterior_right_tactile": denormalize_tensor(posterior_right_tactile_recon),
         }
 
     def create_multimodal_combined_video(self, video_data: dict[str, Tensor]) -> Tensor:

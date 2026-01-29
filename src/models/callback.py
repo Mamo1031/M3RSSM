@@ -15,6 +15,19 @@ MAX_EPISODES = 60
 RGB_CHANNELS = 3
 
 
+def denormalize_tensor(tensor: Tensor) -> Tensor:
+    """Denormalize tensor from [-1, 1] to [0, 1].
+
+    Args:
+        tensor: Input tensor in [-1, 1] range.
+
+    Returns
+    -------
+    Tensor: Output tensor in [0, 1] range.
+    """
+    return (tensor + 1.0) / 2.0
+
+
 class WandBMetricOrganizer(Callback):
     """Organize WandB metrics for better visualization.
 

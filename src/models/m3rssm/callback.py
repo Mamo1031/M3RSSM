@@ -3,6 +3,7 @@
 import torch
 from lightning import LightningModule
 
+from models.callback import denormalize_tensor
 from models.m3rssm.core import M3RSSM
 from models.m3rssm.state import MTState, cat_mtstates
 from models.mopoe_mrssm.callback import LogMultimodalMRSSMOutput
@@ -76,15 +77,9 @@ class LogM3RSSMOutput(LogMultimodalMRSSMOutput):
         prior_left_tactile_recon = decoder_model.left_tactile_decoder.forward(prior.feature)  # type: ignore[attr-defined, union-attr]
         prior_right_tactile_recon = decoder_model.right_tactile_decoder.forward(prior.feature)  # type: ignore[attr-defined, union-attr]
 
-        prior_vision_recon = (prior_vision_recon + 1.0) / 2.0
-        vision_obs_denorm = (vision_obs_target + 1.0) / 2.0
-        posterior_vision_recon = (posterior_vision_recon + 1.0) / 2.0
-        prior_left_tactile_recon = (prior_left_tactile_recon + 1.0) / 2.0
-        left_tactile_obs_denorm = (left_tactile_obs_target + 1.0) / 2.0
-        posterior_left_tactile_recon = (posterior_left_tactile_recon + 1.0) / 2.0
-        prior_right_tactile_recon = (prior_right_tactile_recon + 1.0) / 2.0
-        right_tactile_obs_denorm = (right_tactile_obs_target + 1.0) / 2.0
-        posterior_right_tactile_recon = (posterior_right_tactile_recon + 1.0) / 2.0
+        vision_obs_denorm = denormalize_tensor(vision_obs_target)
+        left_tactile_obs_denorm = denormalize_tensor(left_tactile_obs_target)
+        right_tactile_obs_denorm = denormalize_tensor(right_tactile_obs_target)
 
         if vision_missing:
             vision_obs_denorm = torch.zeros_like(vision_obs_denorm)
@@ -94,13 +89,13 @@ class LogM3RSSMOutput(LogMultimodalMRSSMOutput):
             right_tactile_obs_denorm = torch.zeros_like(right_tactile_obs_denorm)
 
         return {
-            "prior_vision": prior_vision_recon,
+            "prior_vision": denormalize_tensor(prior_vision_recon),
             "observation_vision": vision_obs_denorm,
-            "posterior_vision": posterior_vision_recon,
-            "prior_left_tactile": prior_left_tactile_recon,
+            "posterior_vision": denormalize_tensor(posterior_vision_recon),
+            "prior_left_tactile": denormalize_tensor(prior_left_tactile_recon),
             "observation_left_tactile": left_tactile_obs_denorm,
-            "posterior_left_tactile": posterior_left_tactile_recon,
-            "prior_right_tactile": prior_right_tactile_recon,
+            "posterior_left_tactile": denormalize_tensor(posterior_left_tactile_recon),
+            "prior_right_tactile": denormalize_tensor(prior_right_tactile_recon),
             "observation_right_tactile": right_tactile_obs_denorm,
-            "posterior_right_tactile": posterior_right_tactile_recon,
+            "posterior_right_tactile": denormalize_tensor(posterior_right_tactile_recon),
         }
