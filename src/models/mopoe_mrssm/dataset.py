@@ -26,6 +26,11 @@ ACTION_DIM_3D = 3
 ACTION_DIM_2D = 2
 
 
+def identity_transform(data: Tensor) -> Tensor:
+    """Return data unchanged."""
+    return data
+
+
 @dataclass
 class EpisodeDataModuleConfig(BaseEpisodeDataModuleConfig):
     """Configuration for 3-modality MRSSM EpisodeDataModule."""
@@ -69,7 +74,13 @@ class EpisodeDataModuleConfig(BaseEpisodeDataModuleConfig):
         -------
         list[str]: The list of glob patterns.
         """
-        return ["vision_obs*", "left_tactile_obs*", "right_tactile_obs*"]
+        return [
+            "vision_obs*",
+            "left_tactile_obs*",
+            "right_tactile_obs*",
+            "left_tactile_init*",
+            "right_tactile_init*",
+        ]
 
 
 class EpisodeDataModule(BaseEpisodeDataModule):
@@ -160,8 +171,10 @@ class EpisodeDataModule(BaseEpisodeDataModule):
         for i in tqdm(range(num_episodes)):
             action = config.action_preprocess(actions[i])
             vision_observation = config.vision_observation_preprocess(vision_observations[i])  # type: ignore[attr-defined,assignment]
-            left_tactile_observation = config.left_tactile_observation_preprocess(left_tactile_observations[i])  # type: ignore[attr-defined,assignment]
-            right_tactile_observation = config.right_tactile_observation_preprocess(right_tactile_observations[i])  # type: ignore[attr-defined,assignment]
+            left_diff, left_init = self._compute_tactile_diff(left_tactile_observations[i])
+            right_diff, right_init = self._compute_tactile_diff(right_tactile_observations[i])
+            left_tactile_observation = config.left_tactile_observation_preprocess(left_diff)  # type: ignore[attr-defined,assignment]
+            right_tactile_observation = config.right_tactile_observation_preprocess(right_diff)  # type: ignore[attr-defined,assignment]
             torch.save(action.detach().clone(), config.processed_data_dir / f"act_{i:03d}.pt")
             torch.save(
                 vision_observation.detach().clone(),
@@ -174,6 +187,14 @@ class EpisodeDataModule(BaseEpisodeDataModule):
             torch.save(
                 right_tactile_observation.detach().clone(),
                 config.processed_data_dir / f"right_tactile_obs_{i:03d}.pt",
+            )
+            torch.save(
+                left_init.detach().clone(),
+                config.processed_data_dir / f"left_tactile_init_{i:03d}.pt",
+            )
+            torch.save(
+                right_init.detach().clone(),
+                config.processed_data_dir / f"right_tactile_init_{i:03d}.pt",
             )
 
     def _processed_data_matches_h5_shape(self, h5_path: Path) -> bool:
@@ -202,7 +223,14 @@ class EpisodeDataModule(BaseEpisodeDataModule):
     @staticmethod
     def _clear_processed_files(processed_dir: Path) -> None:
         """Remove processed data files to allow regeneration."""
-        for pattern in ("act*", "vision_obs*", "left_tactile_obs*", "right_tactile_obs*"):
+        for pattern in (
+            "act*",
+            "vision_obs*",
+            "left_tactile_obs*",
+            "right_tactile_obs*",
+            "left_tactile_init*",
+            "right_tactile_init*",
+        ):
             for path in processed_dir.glob(pattern):
                 path.unlink(missing_ok=True)
 
@@ -290,13 +318,36 @@ class EpisodeDataModule(BaseEpisodeDataModule):
         vision_observation_path_list = list(effective_dir.glob("vision_obs*"))
         left_tactile_observation_path_list = list(effective_dir.glob("left_tactile_obs*"))
         right_tactile_observation_path_list = list(effective_dir.glob("right_tactile_obs*"))
+        left_tactile_init_path_list = list(effective_dir.glob("left_tactile_init*"))
+        right_tactile_init_path_list = list(effective_dir.glob("right_tactile_init*"))
 
         return (
             len(action_path_list) > 0
             and len(vision_observation_path_list) > 0
             and len(left_tactile_observation_path_list) > 0
             and len(right_tactile_observation_path_list) > 0
+            and len(left_tactile_init_path_list) > 0
+            and len(right_tactile_init_path_list) > 0
         )
+
+    @staticmethod
+    def _compute_tactile_diff(observations: Tensor) -> tuple[Tensor, Tensor]:
+        """Compute tactile diff and initial frame from raw observations.
+
+        Args:
+            observations: Raw tactile observations. Shape: [T,C,H,W] or [T,H,W] or [N,T,C,H,W]
+
+        Returns
+        -------
+        tuple[Tensor, Tensor]: (diff, initial) where diff is [T,C,H,W] and initial is [C,H,W]
+        """
+        if observations.dim() == OBSERVATION_DIM_5D:
+            observations = observations[0]
+        if observations.dim() == OBSERVATION_DIM_3D:
+            observations = observations.unsqueeze(1)
+        initial = observations[0]
+        diff = observations - initial.unsqueeze(0)
+        return diff, initial
 
     def _process_episode_data(
         self,
@@ -327,8 +378,10 @@ class EpisodeDataModule(BaseEpisodeDataModule):
         for i in tqdm(range(num_episodes)):
             action = config.action_preprocess(actions[i])
             vision_observation = config.vision_observation_preprocess(vision_observations[i])  # type: ignore[attr-defined,assignment]
-            left_tactile_observation = config.left_tactile_observation_preprocess(left_tactile_observations[i])  # type: ignore[attr-defined,assignment]
-            right_tactile_observation = config.right_tactile_observation_preprocess(right_tactile_observations[i])  # type: ignore[attr-defined,assignment]
+            left_diff, left_init = self._compute_tactile_diff(left_tactile_observations[i])
+            right_diff, right_init = self._compute_tactile_diff(right_tactile_observations[i])
+            left_tactile_observation = config.left_tactile_observation_preprocess(left_diff)  # type: ignore[attr-defined,assignment]
+            right_tactile_observation = config.right_tactile_observation_preprocess(right_diff)  # type: ignore[attr-defined,assignment]
             torch.save(action.detach().clone(), config.processed_data_dir / f"act_{i:03d}.pt")
             torch.save(
                 vision_observation.detach().clone(),
@@ -341,6 +394,14 @@ class EpisodeDataModule(BaseEpisodeDataModule):
             torch.save(
                 right_tactile_observation.detach().clone(),
                 config.processed_data_dir / f"right_tactile_obs_{i:03d}.pt",
+            )
+            torch.save(
+                left_init.detach().clone(),
+                config.processed_data_dir / f"left_tactile_init_{i:03d}.pt",
+            )
+            torch.save(
+                right_init.detach().clone(),
+                config.processed_data_dir / f"right_tactile_init_{i:03d}.pt",
             )
 
     def _process_individual_files(self) -> None:
@@ -356,21 +417,25 @@ class EpisodeDataModule(BaseEpisodeDataModule):
                 config.processed_data_dir / f"{vision_observation_path.stem}.pt",
             )
         for left_tactile_observation_path in tqdm(sorted(config.data_dir.glob("left_tactile_obs*"))):
-            left_tactile_observation = config.left_tactile_observation_preprocess(
-                load_tensor(left_tactile_observation_path),
-            )  # type: ignore[attr-defined,assignment]
+            left_raw = load_tensor(left_tactile_observation_path)
+            left_diff, left_init = self._compute_tactile_diff(left_raw)
+            left_tactile_observation = config.left_tactile_observation_preprocess(left_diff)  # type: ignore[attr-defined,assignment]
             torch.save(
                 left_tactile_observation.detach().clone(),
                 config.processed_data_dir / f"{left_tactile_observation_path.stem}.pt",
             )
+            left_init_name = left_tactile_observation_path.stem.replace("left_tactile_obs", "left_tactile_init")
+            torch.save(left_init.detach().clone(), config.processed_data_dir / f"{left_init_name}.pt")
         for right_tactile_observation_path in tqdm(sorted(config.data_dir.glob("right_tactile_obs*"))):
-            right_tactile_observation = config.right_tactile_observation_preprocess(
-                load_tensor(right_tactile_observation_path),
-            )  # type: ignore[attr-defined,assignment]
+            right_raw = load_tensor(right_tactile_observation_path)
+            right_diff, right_init = self._compute_tactile_diff(right_raw)
+            right_tactile_observation = config.right_tactile_observation_preprocess(right_diff)  # type: ignore[attr-defined,assignment]
             torch.save(
                 right_tactile_observation.detach().clone(),
                 config.processed_data_dir / f"{right_tactile_observation_path.stem}.pt",
             )
+            right_init_name = right_tactile_observation_path.stem.replace("right_tactile_obs", "right_tactile_init")
+            torch.save(right_init.detach().clone(), config.processed_data_dir / f"{right_init_name}.pt")
 
     def setup(self, stage: str = "fit") -> None:
         """Set up the data."""
@@ -381,6 +446,8 @@ class EpisodeDataModule(BaseEpisodeDataModule):
         vision_observation_path_list = sorted(effective_dir.glob("vision_obs*"))
         left_tactile_observation_path_list = sorted(effective_dir.glob("left_tactile_obs*"))
         right_tactile_observation_path_list = sorted(effective_dir.glob("right_tactile_obs*"))
+        left_tactile_init_path_list = sorted(effective_dir.glob("left_tactile_init*"))
+        right_tactile_init_path_list = sorted(effective_dir.glob("right_tactile_init*"))
 
         train_action_list, val_action_list = split_path_list(action_path_list, 0.8)
         train_vision_observation_list, val_vision_observation_list = split_path_list(vision_observation_path_list, 0.8)
@@ -390,6 +457,14 @@ class EpisodeDataModule(BaseEpisodeDataModule):
         )
         train_right_tactile_observation_list, val_right_tactile_observation_list = split_path_list(
             right_tactile_observation_path_list,
+            0.8,
+        )
+        train_left_tactile_init_list, val_left_tactile_init_list = split_path_list(
+            left_tactile_init_path_list,
+            0.8,
+        )
+        train_right_tactile_init_list, val_right_tactile_init_list = split_path_list(
+            right_tactile_init_path_list,
             0.8,
         )
 
@@ -403,6 +478,8 @@ class EpisodeDataModule(BaseEpisodeDataModule):
                 EpisodeDataset(train_vision_observation_list, config.vision_observation_target_transform),
                 EpisodeDataset(train_left_tactile_observation_list, config.left_tactile_observation_target_transform),
                 EpisodeDataset(train_right_tactile_observation_list, config.right_tactile_observation_target_transform),
+                EpisodeDataset(train_left_tactile_init_list, identity_transform),
+                EpisodeDataset(train_right_tactile_init_list, identity_transform),
             )
         self.val_dataset = StackDataset(
             EpisodeDataset(val_action_list, config.action_input_transform),
@@ -413,4 +490,6 @@ class EpisodeDataModule(BaseEpisodeDataModule):
             EpisodeDataset(val_vision_observation_list, config.vision_observation_target_transform),
             EpisodeDataset(val_left_tactile_observation_list, config.left_tactile_observation_target_transform),
             EpisodeDataset(val_right_tactile_observation_list, config.right_tactile_observation_target_transform),
+            EpisodeDataset(val_left_tactile_init_list, identity_transform),
+            EpisodeDataset(val_right_tactile_init_list, identity_transform),
         )

@@ -87,6 +87,8 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
             vision_obs_target,
             left_tactile_obs_target,
             right_tactile_obs_target,
+            left_tactile_init,
+            right_tactile_init,
         ) = (tensor.to(device) for tensor in batch)
         batch_size = action_input.shape[0]
         return [
@@ -98,6 +100,8 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
                 vision_obs_target[i : i + 1],
                 left_tactile_obs_target[i : i + 1],
                 right_tactile_obs_target[i : i + 1],
+                left_tactile_init[i : i + 1],
+                right_tactile_init[i : i + 1],
             )
             for i in range(batch_size)
         ]
@@ -122,6 +126,8 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
             vision_obs_target,
             left_tactile_obs_target,
             right_tactile_obs_target,
+            left_tactile_init,
+            right_tactile_init,
         ) = episode
         observation_input = (vision_obs_input, left_tactile_obs_input, right_tactile_obs_input)
 
@@ -135,6 +141,8 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
             "vision_target": vision_obs_target,
             "left_tactile_target": left_tactile_obs_target,
             "right_tactile_target": right_tactile_obs_target,
+            "left_tactile_init": left_tactile_init,
+            "right_tactile_init": right_tactile_init,
             "vision_missing": vision_missing,
             "left_tactile_missing": left_tactile_missing,
             "right_tactile_missing": right_tactile_missing,
@@ -233,6 +241,8 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
         vision_obs_target = cast("Tensor", observation_info["vision_target"])
         left_tactile_obs_target = cast("Tensor", observation_info["left_tactile_target"])
         right_tactile_obs_target = cast("Tensor", observation_info["right_tactile_target"])
+        left_tactile_init = cast("Tensor", observation_info["left_tactile_init"])
+        right_tactile_init = cast("Tensor", observation_info["right_tactile_init"])
         vision_missing = bool(observation_info["vision_missing"])
         left_tactile_missing = bool(observation_info["left_tactile_missing"])
         right_tactile_missing = bool(observation_info["right_tactile_missing"])
@@ -248,8 +258,14 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
 
         # Denormalize: from [-1, 1] to [0, 1]
         vision_obs_denorm = denormalize_tensor(vision_obs_target)
-        left_tactile_obs_denorm = denormalize_tensor(left_tactile_obs_target)
-        right_tactile_obs_denorm = denormalize_tensor(right_tactile_obs_target)
+        left_tactile_obs_denorm = LogMultimodalMRSSMOutput._restore_tactile_from_diff(
+            left_tactile_obs_target,
+            left_tactile_init,
+        )
+        right_tactile_obs_denorm = LogMultimodalMRSSMOutput._restore_tactile_from_diff(
+            right_tactile_obs_target,
+            right_tactile_init,
+        )
 
         # For missing modalities, visualize observation as pure black
         if vision_missing:
@@ -263,13 +279,35 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
             "prior_vision": denormalize_tensor(prior_vision_recon),
             "observation_vision": vision_obs_denorm,
             "posterior_vision": denormalize_tensor(posterior_vision_recon),
-            "prior_left_tactile": denormalize_tensor(prior_left_tactile_recon),
+            "prior_left_tactile": LogMultimodalMRSSMOutput._restore_tactile_from_diff(
+                prior_left_tactile_recon,
+                left_tactile_init,
+            ),
             "observation_left_tactile": left_tactile_obs_denorm,
-            "posterior_left_tactile": denormalize_tensor(posterior_left_tactile_recon),
-            "prior_right_tactile": denormalize_tensor(prior_right_tactile_recon),
+            "posterior_left_tactile": LogMultimodalMRSSMOutput._restore_tactile_from_diff(
+                posterior_left_tactile_recon,
+                left_tactile_init,
+            ),
+            "prior_right_tactile": LogMultimodalMRSSMOutput._restore_tactile_from_diff(
+                prior_right_tactile_recon,
+                right_tactile_init,
+            ),
             "observation_right_tactile": right_tactile_obs_denorm,
-            "posterior_right_tactile": denormalize_tensor(posterior_right_tactile_recon),
+            "posterior_right_tactile": LogMultimodalMRSSMOutput._restore_tactile_from_diff(
+                posterior_right_tactile_recon,
+                right_tactile_init,
+            ),
         }
+
+    @staticmethod
+    def _restore_tactile_from_diff(diff_norm: Tensor, initial_raw: Tensor) -> Tensor:
+        """Restore tactile observation from normalized diff and raw initial frame."""
+        diff_raw = (diff_norm + 1.0) / 2.0 * 255.0
+        initial_raw = initial_raw.to(diff_raw.device, diff_raw.dtype)
+        if initial_raw.dim() == 4:
+            initial_raw = initial_raw.unsqueeze(1)
+        restored = diff_raw + initial_raw
+        return restored.clamp(0.0, 255.0) / 255.0
 
     def create_multimodal_combined_video(self, video_data: dict[str, Tensor]) -> Tensor:
         """Create a combined multimodal video with vision, left_tactile, and right_tactile in 3 rows.

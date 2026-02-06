@@ -7,32 +7,32 @@ model:
     vision_representation:
       class_path: models.networks.Representation
       init_args:
-        deterministic_size: 32
-        hidden_size: 32
-        obs_embed_size: 64
-        distribution_config: [4, 4]
+        deterministic_size: 128
+        hidden_size: 128
+        obs_embed_size: 128
+        distribution_config: [8, 8]
         activation_name: ELU
     left_tactile_representation:
       class_path: models.networks.Representation
       init_args:
-        deterministic_size: 32
-        hidden_size: 32
-        obs_embed_size: 64
-        distribution_config: [4, 4]
+        deterministic_size: 128
+        hidden_size: 128
+        obs_embed_size: 128
+        distribution_config: [8, 8]
         activation_name: ELU
     right_tactile_representation:
       class_path: models.networks.Representation
       init_args:
-        deterministic_size: 32
-        hidden_size: 32
-        obs_embed_size: 64
-        distribution_config: [4, 4]
+        deterministic_size: 128
+        hidden_size: 128
+        obs_embed_size: 128
+        distribution_config: [8, 8]
         activation_name: ELU
     vision_encoder:
       class_path: cnn.Encoder
       init_args:
         config:
-          linear_sizes: [64,]
+          linear_sizes: [128,]
           activation_name: ELU
           out_activation_name: Identity
           channels: [8, 16, 32]
@@ -47,7 +47,7 @@ model:
       class_path: cnn.Encoder
       init_args:
         config:
-          linear_sizes: [64,]
+          linear_sizes: [128,]
           activation_name: ELU
           out_activation_name: Identity
           channels: [8, 16, 32]
@@ -62,7 +62,7 @@ model:
       class_path: cnn.Decoder
       init_args:
         config:
-          linear_sizes: [64, 3072]
+          linear_sizes: [128, 3072]
           conv_in_shape: [64, 6, 8]
           activation_name: ELU
           out_activation_name: Tanh
@@ -78,7 +78,7 @@ model:
       class_path: cnn.Decoder
       init_args:
         config:
-          linear_sizes: [64, 3072]
+          linear_sizes: [128, 3072]
           conv_in_shape: [64, 6, 8]
           activation_name: ELU
           out_activation_name: Tanh
@@ -94,7 +94,7 @@ model:
       class_path: cnn.Decoder
       init_args:
         config:
-          linear_sizes: [64, 3072]
+          linear_sizes: [128, 3072]
           conv_in_shape: [64, 6, 8]
           activation_name: ELU
           out_activation_name: Tanh
@@ -109,25 +109,25 @@ model:
     init_proj:
       class_path: torchrl.modules.MLP
       init_args:
-        in_features: 64
-        out_features: 64
+        in_features: 128
+        out_features: 144
         num_cells: 200
         depth: 1
     kl_coeff: 1
     use_kl_balancing: true
     # MTRSSM specific parameters
     action_size: 15
-    hd_dim: 32
+    hd_dim: 16
     hs_dim: 16
-    ld_dim: 32
-    ls_dim: 16
-    l_tau: 2.0
-    h_tau: 4.0
+    ld_dim: 128
+    ls_dim: 64
+    l_tau: 8.0
+    h_tau: 32.0 # 64？？
     l_prior:
       class_path: torchrl.modules.MLP
       init_args:
-        in_features: 32
-        out_features: 16
+        in_features: 128
+        out_features: 64
         num_cells: 32
         depth: 1
         activation_class: torch.nn.ELU
@@ -144,7 +144,7 @@ model:
     h_prior:
       class_path: torchrl.modules.MLP
       init_args:
-        in_features: 32
+        in_features: 16
         out_features: 16
         num_cells: 32
         depth: 1
@@ -153,7 +153,7 @@ model:
     h_posterior:
       class_path: torchrl.modules.MLP
       init_args:
-        in_features: 64
+        in_features: 144
         out_features: 16
         num_cells: 32
         depth: 1
@@ -162,13 +162,13 @@ model:
     l_dist:
       class_path: distribution_extension.MultiOneHotFactory
       init_args:
-        class_size: 4
-        category_size: 4
+        class_size: 8
+        category_size: 8
     h_dist:
       class_path: distribution_extension.MultiOneHotFactory
       init_args:
-        class_size: 2
-        category_size: 8
+        class_size: 4
+        category_size: 4
     w_kl_h: 1.0
 
 optimizer:
@@ -229,8 +229,8 @@ data:
   class_path: models.mopoe_mrssm.dataset.EpisodeDataModule
   init_args:
     config:
-      data_name: data_example
-      batch_size: 4
+      data_name: data_ss_combined
+      batch_size: 2
       num_workers: 2
       gdrive_url: ""
       h5_file_name: rakuda_observations.h5
@@ -259,19 +259,9 @@ data:
         class_path: torchvision.transforms.Compose
         init_args:
           transforms:
-            - class_path: models.transform.RemoveDim
-              init_args:
-                axis: -1
-                indices_to_remove: [1, 2]
             - class_path: models.transform.GaussianNoise
       action_target_transform:
-        class_path: torchvision.transforms.Compose
-        init_args:
-          transforms:
-            - class_path: models.transform.RemoveDim
-              init_args:
-                axis: -1
-                indices_to_remove: [1, 2]
+        class_path: torch.nn.Identity
       vision_observation_input_transform:
         class_path: torchvision.transforms.Compose
         init_args:

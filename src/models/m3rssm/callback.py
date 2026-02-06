@@ -65,6 +65,8 @@ class LogM3RSSMOutput(LogMultimodalMRSSMOutput):
         vision_obs_target = torch.as_tensor(observation_info["vision_target"])
         left_tactile_obs_target = torch.as_tensor(observation_info["left_tactile_target"])
         right_tactile_obs_target = torch.as_tensor(observation_info["right_tactile_target"])
+        left_tactile_init = torch.as_tensor(observation_info["left_tactile_init"])
+        right_tactile_init = torch.as_tensor(observation_info["right_tactile_init"])
         vision_missing = bool(observation_info["vision_missing"])
         left_tactile_missing = bool(observation_info["left_tactile_missing"])
         right_tactile_missing = bool(observation_info["right_tactile_missing"])
@@ -78,8 +80,14 @@ class LogM3RSSMOutput(LogMultimodalMRSSMOutput):
         prior_right_tactile_recon = decoder_model.right_tactile_decoder.forward(prior.feature)  # type: ignore[attr-defined, union-attr]
 
         vision_obs_denorm = denormalize_tensor(vision_obs_target)
-        left_tactile_obs_denorm = denormalize_tensor(left_tactile_obs_target)
-        right_tactile_obs_denorm = denormalize_tensor(right_tactile_obs_target)
+        left_tactile_obs_denorm = LogMultimodalMRSSMOutput._restore_tactile_from_diff(
+            left_tactile_obs_target,
+            left_tactile_init,
+        )
+        right_tactile_obs_denorm = LogMultimodalMRSSMOutput._restore_tactile_from_diff(
+            right_tactile_obs_target,
+            right_tactile_init,
+        )
 
         if vision_missing:
             vision_obs_denorm = torch.zeros_like(vision_obs_denorm)
@@ -92,10 +100,22 @@ class LogM3RSSMOutput(LogMultimodalMRSSMOutput):
             "prior_vision": denormalize_tensor(prior_vision_recon),
             "observation_vision": vision_obs_denorm,
             "posterior_vision": denormalize_tensor(posterior_vision_recon),
-            "prior_left_tactile": denormalize_tensor(prior_left_tactile_recon),
+            "prior_left_tactile": LogMultimodalMRSSMOutput._restore_tactile_from_diff(
+                prior_left_tactile_recon,
+                left_tactile_init,
+            ),
             "observation_left_tactile": left_tactile_obs_denorm,
-            "posterior_left_tactile": denormalize_tensor(posterior_left_tactile_recon),
-            "prior_right_tactile": denormalize_tensor(prior_right_tactile_recon),
+            "posterior_left_tactile": LogMultimodalMRSSMOutput._restore_tactile_from_diff(
+                posterior_left_tactile_recon,
+                left_tactile_init,
+            ),
+            "prior_right_tactile": LogMultimodalMRSSMOutput._restore_tactile_from_diff(
+                prior_right_tactile_recon,
+                right_tactile_init,
+            ),
             "observation_right_tactile": right_tactile_obs_denorm,
-            "posterior_right_tactile": denormalize_tensor(posterior_right_tactile_recon),
+            "posterior_right_tactile": LogMultimodalMRSSMOutput._restore_tactile_from_diff(
+                posterior_right_tactile_recon,
+                right_tactile_init,
+            ),
         }
