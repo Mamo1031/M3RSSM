@@ -116,7 +116,7 @@ model:
     kl_coeff: 1
     use_kl_balancing: true
     # MTRSSM specific parameters
-    action_size: 17
+    action_size: 15
     hd_dim: 32
     hs_dim: 16
     ld_dim: 32
@@ -230,8 +230,8 @@ data:
   init_args:
     config:
       data_name: data_example
-      batch_size: 8
-      num_workers: 4
+      batch_size: 4
+      num_workers: 2
       gdrive_url: ""
       h5_file_name: rakuda_observations.h5
       h5_vision_key: camera/main
@@ -242,7 +242,13 @@ data:
       left_tactile_observation_file_name: tactile.left
       right_tactile_observation_file_name: tactile.right
       action_preprocess:
-        class_path: torch.nn.Identity
+        class_path: torchvision.transforms.Compose
+        init_args:
+          transforms:
+            - class_path: models.transform.RemoveDim
+              init_args:
+                axis: -1
+                indices_to_remove: [1, 2]
       vision_observation_preprocess:
         class_path: models.transform.NormalizeVisionImage
       left_tactile_observation_preprocess:
@@ -253,9 +259,19 @@ data:
         class_path: torchvision.transforms.Compose
         init_args:
           transforms:
+            - class_path: models.transform.RemoveDim
+              init_args:
+                axis: -1
+                indices_to_remove: [1, 2]
             - class_path: models.transform.GaussianNoise
       action_target_transform:
-        class_path: torch.nn.Identity
+        class_path: torchvision.transforms.Compose
+        init_args:
+          transforms:
+            - class_path: models.transform.RemoveDim
+              init_args:
+                axis: -1
+                indices_to_remove: [1, 2]
       vision_observation_input_transform:
         class_path: torchvision.transforms.Compose
         init_args:

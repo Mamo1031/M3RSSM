@@ -17,7 +17,7 @@ model:
       init_args:
         deterministic_size: 32
         hidden_size: 32
-        action_size: 17
+        action_size: 15
         distribution_config: [4, 4]
         activation_name: ELU
     vision_encoder:
@@ -120,21 +120,37 @@ data:
   init_args:
     config:
       data_name: data_example
-      batch_size: 8
-      num_workers: 4
+      batch_size: 4
+      num_workers: 2
       gdrive_url: ""
       observation_file_name: cameras.main
       action_preprocess:
-        class_path: torch.nn.Identity
+        class_path: torchvision.transforms.Compose
+        init_args:
+          transforms:
+            - class_path: models.transform.RemoveDim
+              init_args:
+                axis: -1
+                indices_to_remove: [1, 2]
       observation_preprocess:
         class_path: models.transform.NormalizeVisionImage
       action_input_transform:
         class_path: torchvision.transforms.Compose
         init_args:
           transforms:
+            - class_path: models.transform.RemoveDim
+              init_args:
+                axis: -1
+                indices_to_remove: [1, 2]
             - class_path: models.transform.GaussianNoise
       action_target_transform:
-        class_path: torch.nn.Identity
+        class_path: torchvision.transforms.Compose
+        init_args:
+          transforms:
+            - class_path: models.transform.RemoveDim
+              init_args:
+                axis: -1
+                indices_to_remove: [1, 2]
       observation_input_transform:
         class_path: torchvision.transforms.Compose
         init_args:
