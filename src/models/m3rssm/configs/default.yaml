@@ -230,7 +230,7 @@ data:
   init_args:
     config:
       data_name: data_ss_combined
-      batch_size: 2
+      batch_size: 4
       num_workers: 2
       gdrive_url: ""
       h5_file_name: rakuda_observations.h5
