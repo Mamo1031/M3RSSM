@@ -7,40 +7,40 @@ model:
     vision_representation:
       class_path: models.networks.Representation
       init_args:
-        deterministic_size: 32
-        hidden_size: 32
-        obs_embed_size: 64
-        distribution_config: [4, 4]
+        deterministic_size: 128
+        hidden_size: 128
+        obs_embed_size: 128
+        distribution_config: [8, 8]
         activation_name: ELU
     left_tactile_representation:
       class_path: models.networks.Representation
       init_args:
-        deterministic_size: 32
-        hidden_size: 32
-        obs_embed_size: 64
-        distribution_config: [4, 4]
+        deterministic_size: 128
+        hidden_size: 128
+        obs_embed_size: 128
+        distribution_config: [8, 8]
         activation_name: ELU
     right_tactile_representation:
       class_path: models.networks.Representation
       init_args:
-        deterministic_size: 32
-        hidden_size: 32
-        obs_embed_size: 64
-        distribution_config: [4, 4]
+        deterministic_size: 128
+        hidden_size: 128
+        obs_embed_size: 128
+        distribution_config: [8, 8]
         activation_name: ELU
     transition:
       class_path: models.networks.Transition
       init_args:
-        deterministic_size: 32
-        hidden_size: 32
+        deterministic_size: 128
+        hidden_size: 128
         action_size: 15
-        distribution_config: [4, 4]
+        distribution_config: [8, 8]
         activation_name: ELU
     vision_encoder:
       class_path: cnn.Encoder
       init_args:
         config:
-          linear_sizes: [64,]
+          linear_sizes: [128,]
           activation_name: ELU
           out_activation_name: Identity
           channels: [8, 16, 32]
@@ -55,7 +55,7 @@ model:
       class_path: cnn.Encoder
       init_args:
         config:
-          linear_sizes: [64,]
+          linear_sizes: [128,]
           activation_name: ELU
           out_activation_name: Identity
           channels: [8, 16, 32]
@@ -70,7 +70,7 @@ model:
       class_path: cnn.Decoder
       init_args:
         config:
-          linear_sizes: [64, 3072]
+          linear_sizes: [128, 3072]
           conv_in_shape: [64, 6, 8]
           activation_name: ELU
           out_activation_name: Tanh
@@ -86,7 +86,7 @@ model:
       class_path: cnn.Decoder
       init_args:
         config:
-          linear_sizes: [64, 3072]
+          linear_sizes: [128, 3072]
           conv_in_shape: [64, 6, 8]
           activation_name: ELU
           out_activation_name: Tanh
@@ -102,7 +102,7 @@ model:
       class_path: cnn.Decoder
       init_args:
         config:
-          linear_sizes: [64, 3072]
+          linear_sizes: [128, 3072]
           conv_in_shape: [64, 6, 8]
           activation_name: ELU
           out_activation_name: Tanh
@@ -117,8 +117,8 @@ model:
     init_proj:
       class_path: torchrl.modules.MLP
       init_args:
-        in_features: 64
-        out_features: 32
+        in_features: 128
+        out_features: 128
         num_cells: 200
         depth: 1
     kl_coeff: 1
@@ -212,19 +212,9 @@ data:
         class_path: torchvision.transforms.Compose
         init_args:
           transforms:
-            - class_path: models.transform.RemoveDim
-              init_args:
-                axis: -1
-                indices_to_remove: [1, 2]
             - class_path: models.transform.GaussianNoise
       action_target_transform:
-        class_path: torchvision.transforms.Compose
-        init_args:
-          transforms:
-            - class_path: models.transform.RemoveDim
-              init_args:
-                axis: -1
-                indices_to_remove: [1, 2]
+        class_path: torch.nn.Identity
       vision_observation_input_transform:
         class_path: torchvision.transforms.Compose
         init_args:
