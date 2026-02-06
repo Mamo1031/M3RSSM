@@ -7,24 +7,24 @@ model:
     vision_representation:
       class_path: models.networks.Representation
       init_args:
-        deterministic_size: 32
-        hidden_size: 32
-        obs_embed_size: 64
-        distribution_config: [4, 4]
+        deterministic_size: 128
+        hidden_size: 128
+        obs_embed_size: 128
+        distribution_config: [8, 8]
         activation_name: ELU
     transition:
       class_path: models.networks.Transition
       init_args:
-        deterministic_size: 32
-        hidden_size: 32
+        deterministic_size: 128
+        hidden_size: 128
         action_size: 15
-        distribution_config: [4, 4]
+        distribution_config: [8, 8]
         activation_name: ELU
     vision_encoder:
       class_path: cnn.Encoder
       init_args:
         config:
-          linear_sizes: [64,]
+          linear_sizes: [128,]
           activation_name: ELU
           out_activation_name: Identity
           channels: [8, 16, 32]
@@ -39,7 +39,7 @@ model:
       class_path: cnn.Decoder
       init_args:
         config:
-          linear_sizes: [64, 3072]
+          linear_sizes: [128, 3072]
           conv_in_shape: [64, 6, 8]
           activation_name: ELU
           out_activation_name: Tanh
@@ -54,8 +54,8 @@ model:
     init_proj:
       class_path: torchrl.modules.MLP
       init_args:
-        in_features: 64
-        out_features: 32
+        in_features: 128
+        out_features: 128
         num_cells: 200
         depth: 1
     kl_coeff: 1
@@ -110,7 +110,7 @@ trainer:
     -
       class_path: models.mtrssm.callback.LogMTRSSMOutput
       init_args:
-        every_n_epochs: 10
+        every_n_epochs: 1
         indices: [0, 1, 2]
         query_length: 10
         fps: 10.0
@@ -119,7 +119,7 @@ data:
   class_path: models.mtrssm.dataset.EpisodeDataModule
   init_args:
     config:
-      data_name: data_example
+      data_name: data_ss_combined
       batch_size: 4
       num_workers: 2
       gdrive_url: ""
@@ -138,19 +138,9 @@ data:
         class_path: torchvision.transforms.Compose
         init_args:
           transforms:
-            - class_path: models.transform.RemoveDim
-              init_args:
-                axis: -1
-                indices_to_remove: [1, 2]
             - class_path: models.transform.GaussianNoise
       action_target_transform:
-        class_path: torchvision.transforms.Compose
-        init_args:
-          transforms:
-            - class_path: models.transform.RemoveDim
-              init_args:
-                axis: -1
-                indices_to_remove: [1, 2]
+        class_path: torch.nn.Identity
       observation_input_transform:
         class_path: torchvision.transforms.Compose
         init_args:
