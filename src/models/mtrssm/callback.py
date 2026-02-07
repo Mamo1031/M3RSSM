@@ -12,8 +12,8 @@ from models.callback import (
     denormalize_tensor,
     log_video,
 )
+from models.m3rssm.state import MTState, cat_mtstates
 from models.mtrssm.core import MTRSSM
-from models.state import State, cat_states
 
 
 class LogMTRSSMOutput(BaseLogRSSMOutput):
@@ -134,7 +134,7 @@ class LogMTRSSMOutput(BaseLogRSSMOutput):
         model: MTRSSM,
         action_input: Tensor,
         vision_obs_input: Tensor,
-    ) -> tuple[State, State]:
+    ) -> tuple[MTState, MTState]:
         """Compute posterior and prior reconstructions.
 
         Args:
@@ -144,7 +144,7 @@ class LogMTRSSMOutput(BaseLogRSSMOutput):
 
         Returns
         -------
-        tuple[State, State]: (posterior, prior) states
+        tuple[MTState, MTState]: (posterior, prior) states
         """
         posterior, _ = model.rollout_representation(
             actions=action_input,
@@ -156,14 +156,14 @@ class LogMTRSSMOutput(BaseLogRSSMOutput):
             actions=action_input[:, self.query_length :],
             prev_state=posterior[:, self.query_length - 1],
         )
-        prior = cat_states([posterior[:, : self.query_length], prior], dim=1)
+        prior = cat_mtstates([posterior[:, : self.query_length], prior], dim=1)
         return posterior, prior
 
     @staticmethod
     def _denormalize_reconstructions(
         model: MTRSSM,
-        prior: State,
-        posterior: State,
+        prior: MTState,
+        posterior: MTState,
         vision_obs_target: Tensor,
     ) -> dict[str, Tensor]:
         """Denormalize reconstructions for visualization.

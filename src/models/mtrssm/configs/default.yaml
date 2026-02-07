@@ -12,14 +12,6 @@ model:
         obs_embed_size: 128
         distribution_config: [8, 8]
         activation_name: ELU
-    transition:
-      class_path: models.networks.Transition
-      init_args:
-        deterministic_size: 128
-        hidden_size: 128
-        action_size: 15
-        distribution_config: [8, 8]
-        activation_name: ELU
     vision_encoder:
       class_path: cnn.Encoder
       init_args:
@@ -55,11 +47,66 @@ model:
       class_path: torchrl.modules.MLP
       init_args:
         in_features: 128
-        out_features: 128
+        out_features: 144
         num_cells: 200
         depth: 1
     kl_coeff: 1
     use_kl_balancing: true
+    # MTRSSM specific parameters
+    action_size: 15
+    hd_dim: 16
+    hs_dim: 16
+    ld_dim: 128
+    ls_dim: 64
+    l_tau: 8.0
+    h_tau: 32.0
+    l_prior:
+      class_path: torchrl.modules.MLP
+      init_args:
+        in_features: 128
+        out_features: 64
+        num_cells: 32
+        depth: 1
+        activation_class: torch.nn.ELU
+        activate_last_layer: false
+    l_posterior:
+      class_path: torchrl.modules.MLP
+      init_args:
+        in_features: 96
+        out_features: 16
+        num_cells: 32
+        depth: 1
+        activation_class: torch.nn.ELU
+        activate_last_layer: false
+    h_prior:
+      class_path: torchrl.modules.MLP
+      init_args:
+        in_features: 16
+        out_features: 16
+        num_cells: 32
+        depth: 1
+        activation_class: torch.nn.ELU
+        activate_last_layer: false
+    h_posterior:
+      class_path: torchrl.modules.MLP
+      init_args:
+        in_features: 144
+        out_features: 16
+        num_cells: 32
+        depth: 1
+        activation_class: torch.nn.ELU
+        activate_last_layer: false
+    l_dist:
+      class_path: distribution_extension.MultiOneHotFactory
+      init_args:
+        class_size: 8
+        category_size: 8
+    h_dist:
+      class_path: distribution_extension.MultiOneHotFactory
+      init_args:
+        class_size: 4
+        category_size: 4
+    w_kl_h: 1.0
 
 optimizer:
   class_path: torch.optim.AdamW
@@ -85,6 +132,7 @@ trainer:
   logger:
     class_path: lightning.pytorch.loggers.WandbLogger
     init_args:
+      name: mtrssm
       log_model: false
       project: m3rssm
       save_dir: .venv
@@ -110,7 +158,7 @@ trainer:
     -
       class_path: models.mtrssm.callback.LogMTRSSMOutput
       init_args:
-        every_n_epochs: 1
+        every_n_epochs: 10
         indices: [0, 1, 2]
         query_length: 10
         fps: 10.0
