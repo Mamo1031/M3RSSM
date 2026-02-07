@@ -199,10 +199,13 @@ class BaseLogRSSMOutput(Callback, ABC):
 
         for stage in ("train", "val"):
             all_episodes = self._collect_episodes(trainer, pl_module, stage)
-            # Limit to 7 episodes per stage for visualization
-            limited_episodes = all_episodes[:7]
-            for episode_idx, episode in enumerate(limited_episodes):
-                self._process_episode(episode, pl_module, stage, episode_idx, logger)
+            limited_episodes = all_episodes[:3]
+            with torch.no_grad():
+                for episode_idx, episode in enumerate(limited_episodes):
+                    with torch.amp.autocast("cuda", enabled=torch.cuda.is_available()):
+                        self._process_episode(episode, pl_module, stage, episode_idx, logger)
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
 
     def on_train_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
         """Log RSSM output with the best model at the end of training."""
@@ -217,10 +220,13 @@ class BaseLogRSSMOutput(Callback, ABC):
         # Visualize with the best model
         for stage in ("train", "val"):
             all_episodes = self._collect_episodes(trainer, best_model, stage)
-            # Limit to 7 episodes per stage for visualization
-            limited_episodes = all_episodes[:7]
-            for episode_idx, episode in enumerate(limited_episodes):
-                self._process_episode(episode, best_model, stage, episode_idx, logger)
+            limited_episodes = all_episodes[:3]
+            with torch.no_grad():
+                for episode_idx, episode in enumerate(limited_episodes):
+                    with torch.amp.autocast("cuda", enabled=torch.cuda.is_available()):
+                        self._process_episode(episode, best_model, stage, episode_idx, logger)
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
 
     @abstractmethod
     def _process_episode(
