@@ -3,6 +3,7 @@
 import sys
 from pathlib import Path
 
+import torch
 from lightning.pytorch.cli import LightningCLI
 
 
@@ -12,6 +13,10 @@ def run_training(default_config: str | Path) -> None:
     Args:
         default_config: Path to the default config file.
     """
+    # Optimize Tensor Core usage on CUDA devices
+    if torch.cuda.is_available():
+        torch.set_float32_matmul_precision("medium")
+
     default_config_str = str(default_config)
     has_config = any(arg in {"-c", "--config"} for arg in sys.argv[1:])
 
