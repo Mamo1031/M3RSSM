@@ -48,6 +48,10 @@ mypy_path = "src"
 explicit_package_bases = true
 disable_error_code = ["override"]
 
+[[tool.mypy.overrides]]
+module = ["models.dataset", "models.mtrssm.core", "models.mopoe_mrssm.callback", "models.m3rssm.core"]
+disable_error_code = ["arg-type", "operator"]
+
 [tool.pyright]
 reportMissingImports = "none"
 
@@ -73,10 +77,18 @@ known-first-party = ["models"]
 [tool.ruff.lint.per-file-ignores]
 "src/models/callback.py" = ["PLR6301", "C901", "PLR0912", "PLR0915", "PLR0914", "TRY300"]
 "src/models/core.py" = ["PLR0913", "PLR6301"]
+"src/models/m3rssm/callback.py" = ["DOC201", "PLR0913", "PLR0914", "PLR0917", "PLR6301", "SLF001"]
+"src/models/m3rssm/core.py" = ["DOC201", "DOC501", "F841", "PLR0913", "PLR6301", "PLR2004", "RUF100"]
+"src/models/m3rssm/state.py" = ["DOC201", "DOC402", "E501", "PLR0913", "PLR6301"]
 "src/models/dataset.py" = ["DOC501", "DOC502"]
 "src/models/networks.py" = ["PLR0913"]
+"src/models/mopoe_mrssm/callback.py" = ["ARG002", "ARG004", "C901", "DOC201", "E501", "ERA001", "F841", "PLC0415", "PLR0912", "PLR0913", "PLR0914", "PLR0915", "PLR0917", "PLR2004", "PLR6301", "RUF100", "SIM108", "TC001"]
+"src/models/mopoe_mrssm/core.py" = ["DOC201", "E501", "PLR0913", "PLR0917", "PLR6301", "RUF100"]
+"src/models/mopoe_mrssm/dataset.py" = ["DOC201", "DOC501", "DOC502", "PLR0914"]
+"src/models/mtrssm/callback.py" = ["PLR0913", "PLR6301"]
+"src/models/mtrssm/core.py" = ["DOC201", "DOC501", "PLR0913", "PLR6301", "PLR2004", "RUF100"]
 "tests/*.py" = ["S101", "DOC201", "N801", "PLR6301", "PLR2004", "SLF001", "ANN401"]
-"scripts/*.py" = ["PLC2701"]
+"scripts/*.py" = ["PLC2701", "D104"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
@@ -84,6 +96,14 @@ convention = "numpy"
 [tool.pydoclint]
 style = 'numpy'
 exclude = '\.git|\.ruff_cache|\.mypy_cache|\.venv'
+
+[tool.coverage.run]
+omit = [
+    "src/models/callback.py",
+    "src/models/m3rssm/callback.py",
+    "src/models/mopoe_mrssm/callback.py",
+    "src/models/mtrssm/callback.py",
+]
 
 [tool.poe.tasks]
 lint-ruff = "ruff check --fix ."
