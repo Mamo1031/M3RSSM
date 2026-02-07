@@ -118,7 +118,7 @@ class MoPoE_MRSSM(BaseRSSM):  # noqa: N801
         return State(deter=prior_state.deter, distribution=fused_distribution)
 
     def _poe_fusion_categorical_3mod(
-        self, logits1: Tensor, logits2: Tensor, logits3: Tensor, prior_state: State
+        self, logits1: Tensor, logits2: Tensor, logits3: Tensor, prior_state: State,
     ) -> State:
         """Fuse 3 categorical distributions using Product of Experts (PoE).
 

@@ -1,9 +1,9 @@
 """MoPoE-MRSSM package."""
 
 from models.callback import WandBMetricOrganizer
-from models.mopoe_mrssm.dataset import EpisodeDataModule, EpisodeDataModuleConfig
 from models.mopoe_mrssm.callback import LogMoPoEMRSSMOutput
 from models.mopoe_mrssm.core import MoPoE_MRSSM
+from models.mopoe_mrssm.dataset import EpisodeDataModule, EpisodeDataModuleConfig
 from models.networks import Representation, Transition
 from models.objective import likelihood
 from models.state import State, cat_states, stack_states

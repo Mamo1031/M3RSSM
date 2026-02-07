@@ -48,7 +48,7 @@ class MTRNN(nn.Module):
         return self._compute_mtrnn(inputs, prev_d)
 
 
-class M3RSSM(MoPoE_MRSSM):  # noqa: N801
+class M3RSSM(MoPoE_MRSSM):
     """Multimodal Temporal RSSM with MoPoE fusion (vision + left/right tactile + action)."""
 
     def __init__(  # noqa: PLR0913

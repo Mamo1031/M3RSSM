@@ -383,11 +383,11 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
         # Create horizontal combined videos for each modality
         vision_row = torch.cat([prior_vision, observation_vision, posterior_vision], dim=4)
         left_tactile_diff_row = torch.cat(
-            [prior_left_tactile_diff, observation_left_tactile_diff, posterior_left_tactile_diff], dim=4
+            [prior_left_tactile_diff, observation_left_tactile_diff, posterior_left_tactile_diff], dim=4,
         )
         left_tactile_row = torch.cat([prior_left_tactile, observation_left_tactile, posterior_left_tactile], dim=4)
         right_tactile_diff_row = torch.cat(
-            [prior_right_tactile_diff, observation_right_tactile_diff, posterior_right_tactile_diff], dim=4
+            [prior_right_tactile_diff, observation_right_tactile_diff, posterior_right_tactile_diff], dim=4,
         )
         right_tactile_row = torch.cat([prior_right_tactile, observation_right_tactile, posterior_right_tactile], dim=4)
 
@@ -567,7 +567,7 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
         # Draw labels and captions
         LogMultimodalMRSSMOutput._draw_timestep_label(draw, timestep, time_steps, side_padding, timestep_font)
         LogMultimodalMRSSMOutput._draw_row_labels_5mod(
-            draw, side_padding, top_padding, row_y_ends, row_label_padding, row_font
+            draw, side_padding, top_padding, row_y_ends, row_label_padding, row_font,
         )
         LogMultimodalMRSSMOutput._draw_captions(draw, side_padding, gif_width, row_y_ends[-1], caption_font)
 
@@ -866,7 +866,7 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
         left_tactile_diff_rgb = LogMultimodalMRSSMOutput._process_vision_batch(left_tactile_diff_batch, modality_params)
         left_tactile_rgb = LogMultimodalMRSSMOutput._process_vision_batch(left_tactile_batch, modality_params)
         right_tactile_diff_rgb = LogMultimodalMRSSMOutput._process_vision_batch(
-            right_tactile_diff_batch, modality_params
+            right_tactile_diff_batch, modality_params,
         )
         right_tactile_rgb = LogMultimodalMRSSMOutput._process_vision_batch(right_tactile_batch, modality_params)
 
@@ -1096,7 +1096,6 @@ class LogWeightedMoPoEWeights(Callback):
 
         # Log weights over time series by collecting data from validation episodes
         # self._log_weights_timeseries(trainer, pl_module, logger)
-        pass
 
     @staticmethod
     def _log_weights_timeseries(  # noqa: PLR0914

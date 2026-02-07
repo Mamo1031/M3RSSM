@@ -10,11 +10,11 @@ from models.state import State, cat_states, stack_states
 from models.transform import GaussianNoise, NormalizeVisionImage, RemoveDim
 
 __all__ = [
+    "MTRSSM",
     "EpisodeDataModule",
     "EpisodeDataModuleConfig",
     "GaussianNoise",
     "LogMTRSSMOutput",
-    "MTRSSM",
     "NormalizeVisionImage",
     "RemoveDim",
     "Representation",

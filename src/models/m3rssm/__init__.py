@@ -15,11 +15,11 @@ from models.transform import (
 )
 
 __all__ = [
+    "M3RSSM",
     "EpisodeDataModule",
     "EpisodeDataModuleConfig",
     "GaussianNoise",
     "LogM3RSSMOutput",
-    "M3RSSM",
     "MTState",
     "NormalizeVisionImage",
     "RemoveDim",

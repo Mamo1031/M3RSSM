@@ -443,7 +443,7 @@ class EpisodeDataModule(BaseEpisodeDataModule):
             left_init_name = left_tactile_observation_path.stem.replace("left_tactile_obs", "left_tactile_init")
             torch.save(left_init.detach().clone(), config.processed_data_dir / f"{left_init_name}.pt")
             left_diff_name = left_tactile_observation_path.stem.replace(
-                "left_tactile_obs", "left_tactile_diff_raw"
+                "left_tactile_obs", "left_tactile_diff_raw",
             )
             torch.save(left_diff.detach().clone().float(), config.processed_data_dir / f"{left_diff_name}.pt")
         for right_tactile_observation_path in tqdm(sorted(config.data_dir.glob("right_tactile_obs*"))):
@@ -457,7 +457,7 @@ class EpisodeDataModule(BaseEpisodeDataModule):
             right_init_name = right_tactile_observation_path.stem.replace("right_tactile_obs", "right_tactile_init")
             torch.save(right_init.detach().clone(), config.processed_data_dir / f"{right_init_name}.pt")
             right_diff_name = right_tactile_observation_path.stem.replace(
-                "right_tactile_obs", "right_tactile_diff_raw"
+                "right_tactile_obs", "right_tactile_diff_raw",
             )
             torch.save(right_diff.detach().clone().float(), config.processed_data_dir / f"{right_diff_name}.pt")
 
