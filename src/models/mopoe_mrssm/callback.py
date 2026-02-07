@@ -89,6 +89,8 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
             right_tactile_obs_target,
             left_tactile_init,
             right_tactile_init,
+            left_tactile_diff_raw,
+            right_tactile_diff_raw,
         ) = (tensor.to(device) for tensor in batch)
         batch_size = action_input.shape[0]
         return [
@@ -102,6 +104,8 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
                 right_tactile_obs_target[i : i + 1],
                 left_tactile_init[i : i + 1],
                 right_tactile_init[i : i + 1],
+                left_tactile_diff_raw[i : i + 1],
+                right_tactile_diff_raw[i : i + 1],
             )
             for i in range(batch_size)
         ]
@@ -128,6 +132,8 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
             right_tactile_obs_target,
             left_tactile_init,
             right_tactile_init,
+            left_tactile_diff_raw,
+            right_tactile_diff_raw,
         ) = episode
         observation_input = (vision_obs_input, left_tactile_obs_input, right_tactile_obs_input)
 
@@ -143,6 +149,8 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
             "right_tactile_target": right_tactile_obs_target,
             "left_tactile_init": left_tactile_init,
             "right_tactile_init": right_tactile_init,
+            "left_tactile_diff_raw": left_tactile_diff_raw,
+            "right_tactile_diff_raw": right_tactile_diff_raw,
             "vision_missing": vision_missing,
             "left_tactile_missing": left_tactile_missing,
             "right_tactile_missing": right_tactile_missing,
@@ -200,9 +208,11 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
         posterior, _ = rssm_model.rollout_representation(
             actions=action_input,
             observations=observation_input,
-            prev_state=rssm_model.initial_state(
-                (vision_obs_input[:, 0], left_tactile_obs_input[:, 0], right_tactile_obs_input[:, 0])
-            ),
+            prev_state=rssm_model.initial_state((
+                vision_obs_input[:, 0],
+                left_tactile_obs_input[:, 0],
+                right_tactile_obs_input[:, 0],
+            )),
         )
 
         prior = rssm_model.rollout_transition(
@@ -275,10 +285,24 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
         if right_tactile_missing:
             right_tactile_obs_denorm = torch.zeros_like(right_tactile_obs_denorm)
 
+        # Tactile diff observation: use raw diff (before processing) for visualization
+        # Raw diff is in [-255, 255]; scale to [0, 1] for display: (diff + 255) / 510
+        left_tactile_diff_raw = cast("Tensor", observation_info["left_tactile_diff_raw"])
+        right_tactile_diff_raw = cast("Tensor", observation_info["right_tactile_diff_raw"])
+        left_tactile_diff_obs = LogMultimodalMRSSMOutput._raw_diff_to_vis(left_tactile_diff_raw)
+        right_tactile_diff_obs = LogMultimodalMRSSMOutput._raw_diff_to_vis(right_tactile_diff_raw)
+        if left_tactile_missing:
+            left_tactile_diff_obs = torch.zeros_like(left_tactile_diff_obs)
+        if right_tactile_missing:
+            right_tactile_diff_obs = torch.zeros_like(right_tactile_diff_obs)
+
         return {
             "prior_vision": denormalize_tensor(prior_vision_recon),
             "observation_vision": vision_obs_denorm,
             "posterior_vision": denormalize_tensor(posterior_vision_recon),
+            "prior_left_tactile_diff": denormalize_tensor(prior_left_tactile_recon),
+            "observation_left_tactile_diff": left_tactile_diff_obs,
+            "posterior_left_tactile_diff": denormalize_tensor(posterior_left_tactile_recon),
             "prior_left_tactile": LogMultimodalMRSSMOutput._restore_tactile_from_diff(
                 prior_left_tactile_recon,
                 left_tactile_init,
@@ -288,6 +312,9 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
                 posterior_left_tactile_recon,
                 left_tactile_init,
             ),
+            "prior_right_tactile_diff": denormalize_tensor(prior_right_tactile_recon),
+            "observation_right_tactile_diff": right_tactile_diff_obs,
+            "posterior_right_tactile_diff": denormalize_tensor(posterior_right_tactile_recon),
             "prior_right_tactile": LogMultimodalMRSSMOutput._restore_tactile_from_diff(
                 prior_right_tactile_recon,
                 right_tactile_init,
@@ -300,6 +327,16 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
         }
 
     @staticmethod
+    def _raw_diff_to_vis(raw_diff: Tensor) -> Tensor:
+        """Convert raw tactile diff to [0, 1] for visualization.
+
+        Raw diff is in [-255, 255]. Maps to [0, 1]: 0 (no change) -> 0.5, +255 -> 1.0, -255 -> 0.0.
+        """
+        diff = raw_diff.to(torch.float32)
+        diff_clamped = diff.clamp(-255.0, 255.0)
+        return (diff_clamped + 255.0) / 510.0
+
+    @staticmethod
     def _restore_tactile_from_diff(diff_norm: Tensor, initial_raw: Tensor) -> Tensor:
         """Restore tactile observation from normalized diff and raw initial frame."""
         diff_raw = (diff_norm + 1.0) / 2.0 * 255.0
@@ -310,48 +347,61 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
         return restored.clamp(0.0, 255.0) / 255.0
 
     def create_multimodal_combined_video(self, video_data: dict[str, Tensor]) -> Tensor:
-        """Create a combined multimodal video with vision, left_tactile, and right_tactile in 3 rows.
+        """Create a combined multimodal video with vision, left_tactile_diff, left_tactile, right_tactile_diff, right_tactile in 5 rows.
 
         Layout:
         - Row 1 (vision): vision prior, vision observation, vision posterior
-        - Row 2 (left_tactile): left_tactile prior, left_tactile observation, left_tactile posterior
-        - Row 3 (right_tactile): right_tactile prior, right_tactile observation, right_tactile posterior
+        - Row 2 (left_tactile_diff): left tactile diff prior, observation, posterior
+        - Row 3 (left_tactile): left_tactile prior, left_tactile observation, left_tactile posterior
+        - Row 4 (right_tactile_diff): right tactile diff prior, observation, posterior
+        - Row 5 (right_tactile): right_tactile prior, right_tactile observation, right_tactile posterior
 
         Args:
-            video_data: Dictionary containing:
-                - prior_vision: Camera prior reconstruction [batch, time, channels, height, width]
-                - observation_vision: Camera observation [batch, time, channels, height, width]
-                - posterior_vision: Camera posterior reconstruction [batch, time, channels, height, width]
-                - prior_left_tactile: Left tactile prior reconstruction [batch, time, channels, height, width]
-                - observation_left_tactile: Left tactile observation [batch, time, channels, height, width]
-                - posterior_left_tactile: Left tactile posterior reconstruction [batch, time, channels, height, width]
-                - prior_right_tactile: Right tactile prior reconstruction [batch, time, channels, height, width]
-                - observation_right_tactile: Right tactile observation [batch, time, channels, height, width]
-                - posterior_right_tactile: Right tactile posterior reconstruction [batch, time, channels, height, width]
+            video_data: Dictionary containing prior/observation/posterior for each modality.
 
         Returns
         -------
         Tensor
-            Combined multimodal video [batch, time, channels, height*3, width*3]
+            Combined multimodal video [batch, time, channels, height*5, width*3]
         """
         prior_vision = video_data["prior_vision"]
         observation_vision = video_data["observation_vision"]
         posterior_vision = video_data["posterior_vision"]
+        prior_left_tactile_diff = video_data["prior_left_tactile_diff"]
+        observation_left_tactile_diff = video_data["observation_left_tactile_diff"]
+        posterior_left_tactile_diff = video_data["posterior_left_tactile_diff"]
         prior_left_tactile = video_data["prior_left_tactile"]
         observation_left_tactile = video_data["observation_left_tactile"]
         posterior_left_tactile = video_data["posterior_left_tactile"]
+        prior_right_tactile_diff = video_data["prior_right_tactile_diff"]
+        observation_right_tactile_diff = video_data["observation_right_tactile_diff"]
+        posterior_right_tactile_diff = video_data["posterior_right_tactile_diff"]
         prior_right_tactile = video_data["prior_right_tactile"]
         observation_right_tactile = video_data["observation_right_tactile"]
         posterior_right_tactile = video_data["posterior_right_tactile"]
 
         # Create horizontal combined videos for each modality
-        vision_row = torch.cat([prior_vision, observation_vision, posterior_vision], dim=4)  # [B, T, C, H, W*3]
-        left_tactile_row = torch.cat([prior_left_tactile, observation_left_tactile, posterior_left_tactile], dim=4)  # [B, T, C, H, W*3]
-        right_tactile_row = torch.cat([prior_right_tactile, observation_right_tactile, posterior_right_tactile], dim=4)  # [B, T, C, H, W*3]
+        vision_row = torch.cat([prior_vision, observation_vision, posterior_vision], dim=4)
+        left_tactile_diff_row = torch.cat(
+            [prior_left_tactile_diff, observation_left_tactile_diff, posterior_left_tactile_diff], dim=4
+        )
+        left_tactile_row = torch.cat([prior_left_tactile, observation_left_tactile, posterior_left_tactile], dim=4)
+        right_tactile_diff_row = torch.cat(
+            [prior_right_tactile_diff, observation_right_tactile_diff, posterior_right_tactile_diff], dim=4
+        )
+        right_tactile_row = torch.cat([prior_right_tactile, observation_right_tactile, posterior_right_tactile], dim=4)
 
-        # Ensure all rows have the same width (use the larger width)
-        max_width = max(vision_row.shape[4], left_tactile_row.shape[4], right_tactile_row.shape[4])
-        for row_name, row in [("vision", vision_row), ("left_tactile", left_tactile_row), ("right_tactile", right_tactile_row)]:
+        rows = {
+            "vision": vision_row,
+            "left_tactile_diff": left_tactile_diff_row,
+            "left_tactile": left_tactile_row,
+            "right_tactile_diff": right_tactile_diff_row,
+            "right_tactile": right_tactile_row,
+        }
+
+        # Ensure all rows have the same width
+        max_width = max(r.shape[4] for r in rows.values())
+        for name, row in rows.items():
             if row.shape[4] < max_width:
                 padding = torch.zeros(
                     row.shape[0],
@@ -360,67 +410,51 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
                     row.shape[3],
                     max_width - row.shape[4],
                 ).to(row.device)
-                if row_name == "vision":
-                    vision_row = torch.cat([vision_row, padding], dim=4)
-                elif row_name == "left_tactile":
-                    left_tactile_row = torch.cat([left_tactile_row, padding], dim=4)
-                else:
-                    right_tactile_row = torch.cat([right_tactile_row, padding], dim=4)
+                rows[name] = torch.cat([row, padding], dim=4)
 
         # Ensure all rows have the same number of channels
-        vision_channels = vision_row.shape[2]
-        left_tactile_channels = left_tactile_row.shape[2]
-        right_tactile_channels = right_tactile_row.shape[2]
-        max_channels = max(vision_channels, left_tactile_channels, right_tactile_channels)
+        max_channels = max(r.shape[2] for r in rows.values())
+        for name, row in rows.items():
+            if row.shape[2] < max_channels:
+                padding = torch.zeros(
+                    row.shape[0],
+                    row.shape[1],
+                    max_channels - row.shape[2],
+                    row.shape[3],
+                    row.shape[4],
+                ).to(row.device)
+                rows[name] = torch.cat([row, padding], dim=2)
 
-        if vision_channels < max_channels:
-            padding = torch.zeros(
-                vision_row.shape[0],
-                vision_row.shape[1],
-                max_channels - vision_channels,
-                vision_row.shape[3],
-                vision_row.shape[4],
-            ).to(vision_row.device)
-            vision_row = torch.cat([vision_row, padding], dim=2)
-        if left_tactile_channels < max_channels:
-            padding = torch.zeros(
-                left_tactile_row.shape[0],
-                left_tactile_row.shape[1],
-                max_channels - left_tactile_channels,
-                left_tactile_row.shape[3],
-                left_tactile_row.shape[4],
-            ).to(left_tactile_row.device)
-            left_tactile_row = torch.cat([left_tactile_row, padding], dim=2)
-        if right_tactile_channels < max_channels:
-            padding = torch.zeros(
-                right_tactile_row.shape[0],
-                right_tactile_row.shape[1],
-                max_channels - right_tactile_channels,
-                right_tactile_row.shape[3],
-                right_tactile_row.shape[4],
-            ).to(right_tactile_row.device)
-            right_tactile_row = torch.cat([right_tactile_row, padding], dim=2)
-
-        # Concatenate vertically: [batch, time, channels, height*3, width*3]
-        combined = torch.cat([vision_row, left_tactile_row, right_tactile_row], dim=3)
+        # Concatenate vertically: vision, left_tactile_diff, left_tactile, right_tactile_diff, right_tactile
+        combined = torch.cat(
+            [
+                rows["vision"],
+                rows["left_tactile_diff"],
+                rows["left_tactile"],
+                rows["right_tactile_diff"],
+                rows["right_tactile"],
+            ],
+            dim=3,
+        )
 
         # Add timestep labels and captions
         return self.add_multimodal_timestep_labels(combined)
 
     def add_multimodal_timestep_labels(self, video: Tensor) -> Tensor:  # noqa: PLR0914
-        """Add timestep labels and captions to multimodal video (3 rows: vision, left_tactile, right_tactile).
+        """Add timestep labels and captions to multimodal video (5 rows: vision, left_tactile_diff, left_tactile, right_tactile_diff, right_tactile).
 
         Args:
-            video: Video tensor [batch, time, channels, height*3, width*3]
+            video: Video tensor [batch, time, channels, height*5, width*3]
 
         Returns
         -------
         Tensor
-            Video tensor with timestep labels and captions [batch, time, channels, height*3+padding, width*3+padding]
+            Video tensor with timestep labels and captions [batch, time, channels, height*5+padding, width*3+padding]
         """
         batch_size, time_steps, channels, height, width = video.shape
-        # height is actually height*3 (vision + left_tactile + right_tactile)
-        row_height = height // 3
+        # height is actually height*5 (vision + left_tactile_diff + left_tactile + right_tactile_diff + right_tactile)
+        num_rows = 5
+        row_height = height // num_rows
         result = []
 
         # Padding sizes
@@ -430,7 +464,7 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
         row_label_padding = 10  # For row labels (Camera/LeftTactile/RightTactile)
 
         # Calculate new dimensions
-        new_height = height + top_padding + bottom_padding + row_label_padding * 3
+        new_height = height + top_padding + bottom_padding + row_label_padding * num_rows
         new_width = width + 2 * side_padding
 
         # Load fonts
@@ -443,6 +477,7 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
             "time_steps": time_steps,
             "channels": channels,
             "row_height": row_height,
+            "num_rows": num_rows,
             "width": width,
             "new_height": new_height,
             "new_width": new_width,
@@ -494,6 +529,7 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
         """
         channels = params["channels"]
         row_height = params["row_height"]
+        num_rows = params["num_rows"]
         width = params["width"]
         new_height = params["new_height"]
         new_width = params["new_width"]
@@ -506,33 +542,23 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
         caption_font = params["caption_font"]
         time_steps = params["time_steps"]
 
-        # Split into 3 rows: vision (top), left_tactile (middle), right_tactile (bottom)
-        vision_frame = frame[:, :row_height, :]  # [channels, row_height, width*3]
-        left_tactile_frame = frame[:, row_height : 2 * row_height, :]  # [channels, row_height, width*3]
-        right_tactile_frame = frame[:, 2 * row_height :, :]  # [channels, row_height, width*3]
+        # Split into 5 rows: vision, left_tactile_diff, left_tactile, right_tactile_diff, right_tactile
+        row_frames = [frame[:, i * row_height : (i + 1) * row_height, :] for i in range(num_rows)]
 
         # Convert frames to numpy for PIL processing
-        vision_frame_np = LogMultimodalMRSSMOutput._convert_frame_to_numpy(vision_frame, channels)
-        left_tactile_frame_np = LogMultimodalMRSSMOutput._convert_frame_to_numpy(left_tactile_frame, channels)
-        right_tactile_frame_np = LogMultimodalMRSSMOutput._convert_frame_to_numpy(right_tactile_frame, channels)
+        row_frames_np = [LogMultimodalMRSSMOutput._convert_frame_to_numpy(rf, channels) for rf in row_frames]
 
         # Create new image with padding
         new_frame_np = np.zeros((new_height, new_width, 3), dtype=np.uint8)
 
-        # Place vision frame in top row
-        vision_y_start = top_padding + row_label_padding
-        vision_y_end = vision_y_start + row_height
-        new_frame_np[vision_y_start:vision_y_end, side_padding : side_padding + width] = vision_frame_np
-
-        # Place left_tactile frame in middle row
-        left_tactile_y_start = vision_y_end + row_label_padding
-        left_tactile_y_end = left_tactile_y_start + row_height
-        new_frame_np[left_tactile_y_start:left_tactile_y_end, side_padding : side_padding + width] = left_tactile_frame_np
-
-        # Place right_tactile frame in bottom row
-        right_tactile_y_start = left_tactile_y_end + row_label_padding
-        right_tactile_y_end = right_tactile_y_start + row_height
-        new_frame_np[right_tactile_y_start:right_tactile_y_end, side_padding : side_padding + width] = right_tactile_frame_np
+        # Place each row frame
+        row_y_ends = []
+        y_start = top_padding + row_label_padding
+        for frame_np in row_frames_np:
+            y_end = y_start + row_height
+            new_frame_np[y_start:y_end, side_padding : side_padding + width] = frame_np
+            row_y_ends.append(y_end)
+            y_start = y_end + row_label_padding
 
         # Create PIL Image
         pil_image = Image.fromarray(new_frame_np)
@@ -540,10 +566,10 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
 
         # Draw labels and captions
         LogMultimodalMRSSMOutput._draw_timestep_label(draw, timestep, time_steps, side_padding, timestep_font)
-        LogMultimodalMRSSMOutput._draw_row_labels_3mod(
-            draw, side_padding, top_padding, vision_y_end, left_tactile_y_end, row_font
+        LogMultimodalMRSSMOutput._draw_row_labels_5mod(
+            draw, side_padding, top_padding, row_y_ends, row_label_padding, row_font
         )
-        LogMultimodalMRSSMOutput._draw_captions(draw, side_padding, gif_width, right_tactile_y_end, caption_font)
+        LogMultimodalMRSSMOutput._draw_captions(draw, side_padding, gif_width, row_y_ends[-1], caption_font)
 
         # Convert back to tensor
         return LogMultimodalMRSSMOutput._convert_pil_to_tensor(pil_image, channels, new_height, new_width)
@@ -647,30 +673,33 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
         draw.text((timestep_x, timestep_y), timestep_label, fill=(255, 255, 255), font=font)
 
     @staticmethod
-    def _draw_row_labels_3mod(
+    def _draw_row_labels_5mod(
         draw: ImageDraw.ImageDraw,
         side_padding: int,
         top_padding: int,
-        vision_y_end: int,
-        left_tactile_y_end: int,
+        row_y_ends: list[int],
+        row_label_padding: int,
         font: ImageFont.FreeTypeFont | ImageFont.ImageFont | None,
     ) -> None:
-        """Draw row labels (Vision, LeftTactile, RightTactile).
+        """Draw row labels (Vision, LeftTactileDiff, LeftTactile, RightTactileDiff, RightTactile).
 
         Args:
             draw: PIL ImageDraw object
             side_padding: Side padding size
             top_padding: Top padding size
-            vision_y_end: Y position where vision row ends
-            left_tactile_y_end: Y position where left_tactile row ends
+            row_y_ends: List of Y positions where each row ends
+            row_label_padding: Padding between rows
             font: Font to use
         """
         row_label_x = side_padding
-        vision_label_y = top_padding + 5
-        left_tactile_label_y = vision_y_end + 5
-        right_tactile_label_y = left_tactile_y_end + 5
+        labels = ["v", "l'", "l", "r'", "r"]  # vision, left_diff, left, right_diff, right
 
-        for row_name, row_y in [("v", vision_label_y), ("l", left_tactile_label_y), ("r", right_tactile_label_y)]:
+        for i, row_name in enumerate(labels):
+            if i == 0:
+                row_y = top_padding + 5
+            else:
+                row_y = row_y_ends[i - 1] + 5
+
             if font:
                 row_bbox = draw.textbbox((row_label_x, row_y), row_name, font=font)
             else:
@@ -764,51 +793,65 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
         return frame_tensor
 
     def log_multimodal_video(self, batch_video: Tensor, key: str, logger: WandbLogger) -> None:
-        """Log multimodal video (vision top row, left_tactile middle row, right_tactile bottom row).
+        """Log multimodal video (vision, left_tactile_diff, left_tactile, right_tactile_diff, right_tactile in 5 rows).
 
         Args:
-            batch_video: Video tensor [batch, time, channels, height*3, width*3]
+            batch_video: Video tensor [batch, time, channels, height*5, width*3]
             key: Key for logging
             logger: WandB logger
         """
         batch = batch_video.cpu().detach().numpy()
         b, t, c, h, w = batch.shape
-        # h is actually height*3 (vision + left_tactile + right_tactile)
-        row_h = h // 3
-        usable_h = row_h * 3
+        # h is actually height*5 (vision + left_tactile_diff + left_tactile + right_tactile_diff + right_tactile)
+        num_rows = 5
+        row_h = h // num_rows
+        usable_h = row_h * num_rows
         if usable_h != h:
             batch = batch[:, :, :, :usable_h, :]
 
-        # Split into 3 modality parts
-        vision_batch = batch[:, :, :, :row_h, :]  # [b, t, c, row_h, w]
-        left_tactile_batch = batch[:, :, :, row_h : 2 * row_h, :]  # [b, t, c, row_h, w]
-        right_tactile_batch = batch[:, :, :, 2 * row_h : 3 * row_h, :]  # [b, t, c, row_h, w]
+        # Split into 5 modality parts
+        vision_batch = batch[:, :, :, 0:row_h, :]
+        left_tactile_diff_batch = batch[:, :, :, row_h : 2 * row_h, :]
+        left_tactile_batch = batch[:, :, :, 2 * row_h : 3 * row_h, :]
+        right_tactile_diff_batch = batch[:, :, :, 3 * row_h : 4 * row_h, :]
+        right_tactile_batch = batch[:, :, :, 4 * row_h : 5 * row_h, :]
 
-        # Process 3 modalities
+        # Process 5 modalities
         batch_params = {"b": b, "t": t, "c": c, "row_h": row_h, "w": w}
-        combined_rgb = self._process_3modality_batch(vision_batch, left_tactile_batch, right_tactile_batch, batch_params)
+        combined_rgb = self._process_5modality_batch(
+            vision_batch,
+            left_tactile_diff_batch,
+            left_tactile_batch,
+            right_tactile_diff_batch,
+            right_tactile_batch,
+            batch_params,
+        )
 
         videos = [torch.from_numpy(combined_rgb[i]) for i in range(b)]
         logger.log_video(key=key, videos=videos, fps=[self.fps] * len(videos), format=["gif"] * len(videos))
 
     @staticmethod
-    def _process_3modality_batch(
+    def _process_5modality_batch(
         vision_batch: np.ndarray,
+        left_tactile_diff_batch: np.ndarray,
         left_tactile_batch: np.ndarray,
+        right_tactile_diff_batch: np.ndarray,
         right_tactile_batch: np.ndarray,
         params: dict[str, int],
     ) -> np.ndarray:
-        """Process 3-modality batch (vision + left_tactile + right_tactile).
+        """Process 5-modality batch (vision + left_tactile_diff + left_tactile + right_tactile_diff + right_tactile).
 
         Args:
             vision_batch: Camera batch [b, t, c, row_h, w]
+            left_tactile_diff_batch: Left tactile diff batch [b, t, c, row_h, w]
             left_tactile_batch: Left tactile batch [b, t, c, row_h, w]
+            right_tactile_diff_batch: Right tactile diff batch [b, t, c, row_h, w]
             right_tactile_batch: Right tactile batch [b, t, c, row_h, w]
             params: Dictionary with b, t, c, row_h, w
 
         Returns
         -------
-        np.ndarray: Combined RGB array [b, t, 3, h, w]
+        np.ndarray: Combined RGB array [b, t, 3, h*5, w]
         """
         b, t, c, row_h, w = (
             params["b"],
@@ -818,18 +861,26 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
             params["w"],
         )
 
-        # Process each modality with RGB
-        vision_params = {"b": b, "t": t, "c": c, "row_h": row_h, "w": w}
-        vision_rgb = LogMultimodalMRSSMOutput._process_vision_batch(vision_batch, vision_params)
+        modality_params = {"b": b, "t": t, "c": c, "row_h": row_h, "w": w}
+        vision_rgb = LogMultimodalMRSSMOutput._process_vision_batch(vision_batch, modality_params)
+        left_tactile_diff_rgb = LogMultimodalMRSSMOutput._process_vision_batch(left_tactile_diff_batch, modality_params)
+        left_tactile_rgb = LogMultimodalMRSSMOutput._process_vision_batch(left_tactile_batch, modality_params)
+        right_tactile_diff_rgb = LogMultimodalMRSSMOutput._process_vision_batch(
+            right_tactile_diff_batch, modality_params
+        )
+        right_tactile_rgb = LogMultimodalMRSSMOutput._process_vision_batch(right_tactile_batch, modality_params)
 
-        left_tactile_params = {"b": b, "t": t, "c": c, "row_h": row_h, "w": w}
-        left_tactile_rgb = LogMultimodalMRSSMOutput._process_vision_batch(left_tactile_batch, left_tactile_params)
-
-        right_tactile_params = {"b": b, "t": t, "c": c, "row_h": row_h, "w": w}
-        right_tactile_rgb = LogMultimodalMRSSMOutput._process_vision_batch(right_tactile_batch, right_tactile_params)
-
-        # Combine 3 modalities vertically
-        return np.concatenate([vision_rgb, left_tactile_rgb, right_tactile_rgb], axis=3)  # [b, t, 3, h, w]
+        # Combine 5 modalities vertically
+        return np.concatenate(
+            [
+                vision_rgb,
+                left_tactile_diff_rgb,
+                left_tactile_rgb,
+                right_tactile_diff_rgb,
+                right_tactile_rgb,
+            ],
+            axis=3,
+        )  # [b, t, 3, h*5, w]
 
     @staticmethod
     def _process_vision_batch(vision_batch: np.ndarray, params: dict[str, int]) -> np.ndarray:

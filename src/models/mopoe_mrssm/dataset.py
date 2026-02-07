@@ -80,6 +80,8 @@ class EpisodeDataModuleConfig(BaseEpisodeDataModuleConfig):
             "right_tactile_obs*",
             "left_tactile_init*",
             "right_tactile_init*",
+            "left_tactile_diff_raw*",
+            "right_tactile_diff_raw*",
         ]
 
 
@@ -196,6 +198,14 @@ class EpisodeDataModule(BaseEpisodeDataModule):
                 right_init.detach().clone(),
                 config.processed_data_dir / f"right_tactile_init_{i:03d}.pt",
             )
+            torch.save(
+                left_diff.detach().clone().float(),
+                config.processed_data_dir / f"left_tactile_diff_raw_{i:03d}.pt",
+            )
+            torch.save(
+                right_diff.detach().clone().float(),
+                config.processed_data_dir / f"right_tactile_diff_raw_{i:03d}.pt",
+            )
 
     def _processed_data_matches_h5_shape(self, h5_path: Path) -> bool:
         """Check if processed data matches HDF5 spatial shape.
@@ -230,6 +240,8 @@ class EpisodeDataModule(BaseEpisodeDataModule):
             "right_tactile_obs*",
             "left_tactile_init*",
             "right_tactile_init*",
+            "left_tactile_diff_raw*",
+            "right_tactile_diff_raw*",
         ):
             for path in processed_dir.glob(pattern):
                 path.unlink(missing_ok=True)
@@ -320,6 +332,8 @@ class EpisodeDataModule(BaseEpisodeDataModule):
         right_tactile_observation_path_list = list(effective_dir.glob("right_tactile_obs*"))
         left_tactile_init_path_list = list(effective_dir.glob("left_tactile_init*"))
         right_tactile_init_path_list = list(effective_dir.glob("right_tactile_init*"))
+        left_tactile_diff_raw_path_list = list(effective_dir.glob("left_tactile_diff_raw*"))
+        right_tactile_diff_raw_path_list = list(effective_dir.glob("right_tactile_diff_raw*"))
 
         return (
             len(action_path_list) > 0
@@ -328,6 +342,8 @@ class EpisodeDataModule(BaseEpisodeDataModule):
             and len(right_tactile_observation_path_list) > 0
             and len(left_tactile_init_path_list) > 0
             and len(right_tactile_init_path_list) > 0
+            and len(left_tactile_diff_raw_path_list) > 0
+            and len(right_tactile_diff_raw_path_list) > 0
         )
 
     @staticmethod
@@ -426,6 +442,10 @@ class EpisodeDataModule(BaseEpisodeDataModule):
             )
             left_init_name = left_tactile_observation_path.stem.replace("left_tactile_obs", "left_tactile_init")
             torch.save(left_init.detach().clone(), config.processed_data_dir / f"{left_init_name}.pt")
+            left_diff_name = left_tactile_observation_path.stem.replace(
+                "left_tactile_obs", "left_tactile_diff_raw"
+            )
+            torch.save(left_diff.detach().clone().float(), config.processed_data_dir / f"{left_diff_name}.pt")
         for right_tactile_observation_path in tqdm(sorted(config.data_dir.glob("right_tactile_obs*"))):
             right_raw = load_tensor(right_tactile_observation_path)
             right_diff, right_init = self._compute_tactile_diff(right_raw)
@@ -436,6 +456,10 @@ class EpisodeDataModule(BaseEpisodeDataModule):
             )
             right_init_name = right_tactile_observation_path.stem.replace("right_tactile_obs", "right_tactile_init")
             torch.save(right_init.detach().clone(), config.processed_data_dir / f"{right_init_name}.pt")
+            right_diff_name = right_tactile_observation_path.stem.replace(
+                "right_tactile_obs", "right_tactile_diff_raw"
+            )
+            torch.save(right_diff.detach().clone().float(), config.processed_data_dir / f"{right_diff_name}.pt")
 
     def setup(self, stage: str = "fit") -> None:
         """Set up the data."""
@@ -448,6 +472,8 @@ class EpisodeDataModule(BaseEpisodeDataModule):
         right_tactile_observation_path_list = sorted(effective_dir.glob("right_tactile_obs*"))
         left_tactile_init_path_list = sorted(effective_dir.glob("left_tactile_init*"))
         right_tactile_init_path_list = sorted(effective_dir.glob("right_tactile_init*"))
+        left_tactile_diff_raw_path_list = sorted(effective_dir.glob("left_tactile_diff_raw*"))
+        right_tactile_diff_raw_path_list = sorted(effective_dir.glob("right_tactile_diff_raw*"))
 
         train_action_list, val_action_list = split_path_list(action_path_list, 0.8)
         train_vision_observation_list, val_vision_observation_list = split_path_list(vision_observation_path_list, 0.8)
@@ -467,6 +493,14 @@ class EpisodeDataModule(BaseEpisodeDataModule):
             right_tactile_init_path_list,
             0.8,
         )
+        train_left_tactile_diff_raw_list, val_left_tactile_diff_raw_list = split_path_list(
+            left_tactile_diff_raw_path_list,
+            0.8,
+        )
+        train_right_tactile_diff_raw_list, val_right_tactile_diff_raw_list = split_path_list(
+            right_tactile_diff_raw_path_list,
+            0.8,
+        )
 
         if stage == "fit":
             self.train_dataset = StackDataset(
@@ -480,6 +514,8 @@ class EpisodeDataModule(BaseEpisodeDataModule):
                 EpisodeDataset(train_right_tactile_observation_list, config.right_tactile_observation_target_transform),
                 EpisodeDataset(train_left_tactile_init_list, identity_transform),
                 EpisodeDataset(train_right_tactile_init_list, identity_transform),
+                EpisodeDataset(train_left_tactile_diff_raw_list, identity_transform),
+                EpisodeDataset(train_right_tactile_diff_raw_list, identity_transform),
             )
         self.val_dataset = StackDataset(
             EpisodeDataset(val_action_list, config.action_input_transform),
@@ -492,4 +528,6 @@ class EpisodeDataModule(BaseEpisodeDataModule):
             EpisodeDataset(val_right_tactile_observation_list, config.right_tactile_observation_target_transform),
             EpisodeDataset(val_left_tactile_init_list, identity_transform),
             EpisodeDataset(val_right_tactile_init_list, identity_transform),
+            EpisodeDataset(val_left_tactile_diff_raw_list, identity_transform),
+            EpisodeDataset(val_right_tactile_diff_raw_list, identity_transform),
         )
