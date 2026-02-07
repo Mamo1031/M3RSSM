@@ -3,6 +3,8 @@
 ![python](https://img.shields.io/badge/python-3.12-blue)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/charliermarsh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![CI](https://github.com/Mamo1031/M3RSSM/actions/workflows/ci.yaml/badge.svg)](https://github.com/Mamo1031/M3RSSM/actions/workflows/ci.yaml)
+[![codecov](https://codecov.io/gh/Mamo1031/M3RSSM/graph/badge.svg?token=D2A2FU8CFY)](https://codecov.io/gh/Mamo1031/M3RSSM)
 
 **M**ixture-of-Products-of-Experts **M**ultiple Timescale **M**ultimodal Recurrent State-Space Model (M3RSSM).
 
