@@ -65,6 +65,7 @@ class M3RSSM(MoPoE_MRSSM):
         init_proj: nn.Module,
         kl_coeff: float,
         use_kl_balancing: bool,
+        tactile_recon_weight: float = 1.0,
         # MTRSSM specific parameters
         action_size: int,
         hd_dim: int,
@@ -102,6 +103,7 @@ class M3RSSM(MoPoE_MRSSM):
             init_proj=init_proj,
             kl_coeff=kl_coeff,
             use_kl_balancing=use_kl_balancing,
+            tactile_recon_weight=tactile_recon_weight,
         )
 
         self.action_dim = action_size
@@ -408,7 +410,7 @@ class M3RSSM(MoPoE_MRSSM):
         reconstructions = self.decode_state(posterior)
         targets = self.get_targets_from_batch(batch)
 
-        loss_dict = MoPoE_MRSSM.compute_reconstruction_loss(reconstructions, targets)
+        loss_dict = self.compute_reconstruction_loss(reconstructions, targets)
         kl_div_l = kl_divergence(
             q=posterior.distribution_l.independent(1),
             p=prior.distribution_l.independent(1),
@@ -425,5 +427,4 @@ class M3RSSM(MoPoE_MRSSM):
         loss_dict["loss"] = loss_dict["recon"] + kl_div_l + kl_div_h
         return loss_dict
 
-    compute_reconstruction_loss = MoPoE_MRSSM.compute_reconstruction_loss
     encode_observation = MoPoE_MRSSM.encode_observation

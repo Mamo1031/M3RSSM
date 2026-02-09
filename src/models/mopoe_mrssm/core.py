@@ -34,6 +34,7 @@ class MoPoE_MRSSM(BaseRSSM):  # noqa: N801
         init_proj: nn.Module,
         kl_coeff: float,
         use_kl_balancing: bool,
+        tactile_recon_weight: float = 1.0,
     ) -> None:
         """Initialize MoPoE-MRSSM.
 
@@ -58,6 +59,7 @@ class MoPoE_MRSSM(BaseRSSM):  # noqa: N801
             kl_coeff=kl_coeff,
             use_kl_balancing=use_kl_balancing,
         )
+        self.tactile_recon_weight = tactile_recon_weight
         self.vision_representation = vision_representation
         self.left_tactile_representation = left_tactile_representation
         self.right_tactile_representation = right_tactile_representation
@@ -349,8 +351,8 @@ class MoPoE_MRSSM(BaseRSSM):  # noqa: N801
             "recon/right_tactile": right_tactile_recon,
         }
 
-    @staticmethod
     def compute_reconstruction_loss(
+        self,
         reconstructions: dict[str, Tensor],
         targets: dict[str, Tensor],
     ) -> dict[str, Tensor]:
@@ -379,8 +381,9 @@ class MoPoE_MRSSM(BaseRSSM):  # noqa: N801
             target=targets["recon/right_tactile"],
             event_ndims=3,
         )
+        w = self.tactile_recon_weight
         return {
-            "recon": vision_recon_loss + left_tactile_recon_loss + right_tactile_recon_loss,
+            "recon": vision_recon_loss + w * (left_tactile_recon_loss + right_tactile_recon_loss),
             "recon/vision": vision_recon_loss,
             "recon/left_tactile": left_tactile_recon_loss,
             "recon/right_tactile": right_tactile_recon_loss,
