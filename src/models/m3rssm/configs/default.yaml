@@ -115,7 +115,8 @@ model:
         depth: 1
     kl_coeff: 1
     use_kl_balancing: true
-    tactile_recon_weight: 1.0
+    tactile_recon_weight: 100.0
+    vision_recon_weight: 1.0
     # MTRSSM specific parameters
     action_size: 15
     hd_dim: 16

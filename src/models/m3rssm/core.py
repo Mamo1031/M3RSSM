@@ -66,6 +66,7 @@ class M3RSSM(MoPoE_MRSSM):
         kl_coeff: float,
         use_kl_balancing: bool,
         tactile_recon_weight: float = 1.0,
+        vision_recon_weight: float = 1.0,
         # MTRSSM specific parameters
         action_size: int,
         hd_dim: int,
@@ -104,6 +105,7 @@ class M3RSSM(MoPoE_MRSSM):
             kl_coeff=kl_coeff,
             use_kl_balancing=use_kl_balancing,
             tactile_recon_weight=tactile_recon_weight,
+            vision_recon_weight=vision_recon_weight,
         )
 
         self.action_dim = action_size
