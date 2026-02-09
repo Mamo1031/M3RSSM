@@ -58,7 +58,7 @@ model:
     hs_dim: 16
     ld_dim: 128
     ls_dim: 64
-    l_tau: 8.0
+    l_tau: 4.0
     h_tau: 32.0
     l_prior:
       class_path: torchrl.modules.MLP
@@ -132,7 +132,7 @@ trainer:
   logger:
     class_path: lightning.pytorch.loggers.WandbLogger
     init_args:
-      name: mtrssm
+      name: mtrssm_default
       log_model: false
       project: m3rssm
       save_dir: .venv
@@ -167,7 +167,7 @@ data:
   class_path: models.mtrssm.dataset.EpisodeDataModule
   init_args:
     config:
-      data_name: data_ss_combined
+      data_name: data_default
       batch_size: 4
       num_workers: 2
       gdrive_url: ""

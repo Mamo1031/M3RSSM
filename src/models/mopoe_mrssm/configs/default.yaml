@@ -123,6 +123,7 @@ model:
         depth: 1
     kl_coeff: 1
     use_kl_balancing: true
+    tactile_recon_weight: 1.0
 
 optimizer:
   class_path: torch.optim.AdamW
@@ -148,6 +149,7 @@ trainer:
   logger:
     class_path: lightning.pytorch.loggers.WandbLogger
     init_args:
+      name: mopoe_mrssm_default
       log_model: false
       project: m3rssm
       save_dir: .venv
@@ -182,7 +184,7 @@ data:
   class_path: models.mopoe_mrssm.dataset.EpisodeDataModule
   init_args:
     config:
-      data_name: data_ss_combined
+      data_name: data_default
       batch_size: 4
       num_workers: 2
       gdrive_url: ""
