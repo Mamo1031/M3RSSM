@@ -300,9 +300,9 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
             "prior_vision": denormalize_tensor(prior_vision_recon),
             "observation_vision": vision_obs_denorm,
             "posterior_vision": denormalize_tensor(posterior_vision_recon),
-            "prior_left_tactile_diff": denormalize_tensor(prior_left_tactile_recon),
+            "prior_left_tactile_diff": LogMultimodalMRSSMOutput._diff_norm_to_vis(prior_left_tactile_recon),
             "observation_left_tactile_diff": left_tactile_diff_obs,
-            "posterior_left_tactile_diff": denormalize_tensor(posterior_left_tactile_recon),
+            "posterior_left_tactile_diff": LogMultimodalMRSSMOutput._diff_norm_to_vis(posterior_left_tactile_recon),
             "prior_left_tactile": LogMultimodalMRSSMOutput._restore_tactile_from_diff(
                 prior_left_tactile_recon,
                 left_tactile_init,
@@ -312,9 +312,9 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
                 posterior_left_tactile_recon,
                 left_tactile_init,
             ),
-            "prior_right_tactile_diff": denormalize_tensor(prior_right_tactile_recon),
+            "prior_right_tactile_diff": LogMultimodalMRSSMOutput._diff_norm_to_vis(prior_right_tactile_recon),
             "observation_right_tactile_diff": right_tactile_diff_obs,
-            "posterior_right_tactile_diff": denormalize_tensor(posterior_right_tactile_recon),
+            "posterior_right_tactile_diff": LogMultimodalMRSSMOutput._diff_norm_to_vis(posterior_right_tactile_recon),
             "prior_right_tactile": LogMultimodalMRSSMOutput._restore_tactile_from_diff(
                 prior_right_tactile_recon,
                 right_tactile_init,
@@ -335,6 +335,12 @@ class LogMultimodalMRSSMOutput(BaseLogRSSMOutput):
         diff = raw_diff.to(torch.float32)
         diff_clamped = diff.clamp(-255.0, 255.0)
         return (diff_clamped + 255.0) / 510.0
+
+    @staticmethod
+    def _diff_norm_to_vis(diff_norm: Tensor) -> Tensor:
+        """Convert normalized diff [-1, 1] to visualization scale [0, 1]."""
+        diff_raw = (diff_norm + 1.0) / 2.0 * 255.0
+        return LogMultimodalMRSSMOutput._raw_diff_to_vis(diff_raw)
 
     @staticmethod
     def _restore_tactile_from_diff(diff_norm: Tensor, initial_raw: Tensor) -> Tensor:

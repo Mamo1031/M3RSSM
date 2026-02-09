@@ -112,9 +112,9 @@ class LogM3RSSMOutput(LogMultimodalMRSSMOutput):
             "prior_vision": denormalize_tensor(prior_vision_recon),
             "observation_vision": vision_obs_denorm,
             "posterior_vision": denormalize_tensor(posterior_vision_recon),
-            "prior_left_tactile_diff": denormalize_tensor(prior_left_tactile_recon),
+            "prior_left_tactile_diff": LogMultimodalMRSSMOutput._diff_norm_to_vis(prior_left_tactile_recon),
             "observation_left_tactile_diff": left_tactile_diff_obs,
-            "posterior_left_tactile_diff": denormalize_tensor(posterior_left_tactile_recon),
+            "posterior_left_tactile_diff": LogMultimodalMRSSMOutput._diff_norm_to_vis(posterior_left_tactile_recon),
             "prior_left_tactile": LogMultimodalMRSSMOutput._restore_tactile_from_diff(
                 prior_left_tactile_recon,
                 left_tactile_init,
@@ -124,9 +124,9 @@ class LogM3RSSMOutput(LogMultimodalMRSSMOutput):
                 posterior_left_tactile_recon,
                 left_tactile_init,
             ),
-            "prior_right_tactile_diff": denormalize_tensor(prior_right_tactile_recon),
+            "prior_right_tactile_diff": LogMultimodalMRSSMOutput._diff_norm_to_vis(prior_right_tactile_recon),
             "observation_right_tactile_diff": right_tactile_diff_obs,
-            "posterior_right_tactile_diff": denormalize_tensor(posterior_right_tactile_recon),
+            "posterior_right_tactile_diff": LogMultimodalMRSSMOutput._diff_norm_to_vis(posterior_right_tactile_recon),
             "prior_right_tactile": LogMultimodalMRSSMOutput._restore_tactile_from_diff(
                 prior_right_tactile_recon,
                 right_tactile_init,
