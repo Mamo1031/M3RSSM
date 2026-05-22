@@ -123,3 +123,6 @@ cmd = "uv run python scripts/train_mtrssm.py"
 
 [tool.poe.tasks.train-m3rssm]
 cmd = "uv run python scripts/train_m3rssm.py"
+
+[tool.poe.tasks.train-m-mtrssm]
+cmd = "uv run python scripts/train_m_mtrssm.py"
